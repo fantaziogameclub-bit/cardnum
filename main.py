@@ -21,12 +21,12 @@ logger = logging.getLogger(__name__)
 
 # --- Environment Variables ---
 try:
-    TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-    
-    DATABASE_URL = os.environ["DATABASE_URL"]
-    
-    ADMIN_TELEGRAM_ID = int(os.environ["ADMIN_TELEGRAM_ID"])
-    
+    # TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+    TELEGRAM_BOT_TOKEN=f"8308013948:AAErqQIEFxWZzMJAMkogxL2NVkQ3ufTtSOI"
+    # DATABASE_URL = os.environ["DATABASE_URL"]
+    DATABASE_URL=f"postgresql://root:gRMvmlOv4nC4NxUGOdrK2VC8@cardnum2bot:5432/postgres"
+    # ADMIN_TELEGRAM_ID = int(os.environ["ADMIN_TELEGRAM_ID"])
+    ADMIN_TELEGRAM_ID=int(125886032)
 except KeyError as e:
     logger.error(f"FATAL: Environment variable {e} not set. Exiting.")
     exit()
@@ -356,6 +356,10 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
 
 # --- Edit Menu ---
 async def edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
+        return MAIN_MENU
+    
     keyboard = [["اضافه کردن ➕"], ["تغییر دادن 📝", "حذف کردن 🗑️"], [HOME_BUTTON]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("منوی ویرایش:", reply_markup=reply_markup)
@@ -739,7 +743,7 @@ def main() -> None:
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
                 MessageHandler(filters.Regex("^تغییر دادن 📝$"), change_choose_person),
-                MessageHandler(filters.Regex("^حذف کردن 🗑️$"), delete_choose_type),
+                MessageHandler(filters.Regex(r"^حذف کردن 🗑\uFE0F?$"), delete_choose_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADD_CHOOSE_PERSON_TYPE: [
