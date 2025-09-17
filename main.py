@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 # --- Environment Variables ---
 try:
     TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-    # TELEGRAM_BOT_TOKEN=f"8308013948:AAErqQIEFxWZzMJAMkogxL2NVkQ3ufTtSOI"
+    
     DATABASE_URL = os.environ["DATABASE_URL"]
-    # DATABASE_URL=f"postgresql://root:gRMvmlOv4nC4NxUGOdrK2VC8@cardnum2bot:5432/postgres"
+    
     ADMIN_TELEGRAM_ID = int(os.environ["ADMIN_TELEGRAM_ID"])
-    # ADMIN_TELEGRAM_ID=int(125886032)
+    
 except KeyError as e:
     logger.error(f"FATAL: Environment variable {e} not set. Exiting.")
     exit()
@@ -347,7 +347,7 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
             if card_num: message += f"💳 *کارت:*\n`{card_num}`\n"
             if shaba: message += f"🌐 *شبا:*\n`{shaba}`\n"
             
-            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=update.message.reply_keyboard)
+            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
             if photo_id:
                 try: await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_id, caption="🖼️ تصویر کارت")
                 except: await update.message.reply_text("⚠️ تصویر کارت قابل بارگذاری نبود.")
@@ -418,27 +418,31 @@ async def add_set_existing_person_and_prompt_bank(update: Update, context: Conte
     if not person_id: return ADD_CHOOSE_EXISTING_PERSON
     context.user_data['new_account_person_id'] = person_id
     context.user_data['new_account'] = {}
-    await update.message.reply_text("۱/۵ - نام بانک:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
+    await update.message.reply_text("۱/۵ - نام حساب:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_BANK
 
 async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=update.message.reply_keyboard)
+    # await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=update.message.reply_keyboard)
+    await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_NUMBER
 
 async def add_account_get_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['account_number'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    await update.message.reply_text("۳/۵ - شماره کارت:", reply_markup=update.message.reply_keyboard)
+    # await update.message.reply_text("۳/۵ - شماره کارت:", reply_markup=update.message.reply_keyboard)
+    await update.message.reply_text("۳/۵ - شماره کارت:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_CARD
 
 async def add_account_get_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['card_number'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    await update.message.reply_text("۴/۵ - شماره شبا (بدون IR):", reply_markup=update.message.reply_keyboard)
+    # await update.message.reply_text("۴/۵ - شماره شبا (بدون IR):", reply_markup=update.message.reply_keyboard)
+    await update.message.reply_text("۴/۵ - شماره شبا (بدون IR):", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_SHABA
 
 async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['shaba_number'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    await update.message.reply_text("۵/۵ - تصویر کارت:", reply_markup=update.message.reply_keyboard)
+    # await update.message.reply_text("۵/۵ - تصویر کارت:", reply_markup=update.message.reply_keyboard)
+    await update.message.reply_text("۵/۵ - تصویر کارت:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_PHOTO
 
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
