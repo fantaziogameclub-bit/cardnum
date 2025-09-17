@@ -22,8 +22,11 @@ logger = logging.getLogger(__name__)
 # --- Environment Variables ---
 try:
     TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+    # TELEGRAM_BOT_TOKEN=f"8308013948:AAErqQIEFxWZzMJAMkogxL2NVkQ3ufTtSOI"
     DATABASE_URL = os.environ["DATABASE_URL"]
+    # DATABASE_URL=f"postgresql://root:gRMvmlOv4nC4NxUGOdrK2VC8@cardnum2bot:5432/postgres"
     ADMIN_TELEGRAM_ID = int(os.environ["ADMIN_TELEGRAM_ID"])
+    # ADMIN_TELEGRAM_ID=int(125886032)
 except KeyError as e:
     logger.error(f"FATAL: Environment variable {e} not set. Exiting.")
     exit()
@@ -689,6 +692,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return await start(update, context)
 
 # --- Main Application Setup ---
+# --- بخش بالای کد دقیقا مثل نسخه قبلیت هست ---
+# imports, logging config, env vars, state definitions, keyboards, db functions
+# ...
+# تمام هندلرهای start, main_menu, admin, view, edit, add, delete, change بدون تغییر
+
 def main() -> None:
     setup_database()
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -705,59 +713,140 @@ def main() -> None:
                 MessageHandler(filters.Regex("^مشاهده کاربران مجاز 👁️$"), admin_view_users),
                 MessageHandler(filters.Regex("^افزودن کاربر ➕$"), admin_prompt_add_user),
                 MessageHandler(filters.Regex("^حذف کاربر ➖$"), admin_prompt_remove_user),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
-            ADMIN_ADD_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user)],
-            ADMIN_REMOVE_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user)],
-            VIEW_CHOOSE_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)],
-            VIEW_CHOOSE_ACCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details)],
+            ADMIN_ADD_USER: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user)
+            ],
+            ADMIN_REMOVE_USER: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user)
+            ],
+            VIEW_CHOOSE_PERSON: [
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
+            ],
+            VIEW_CHOOSE_ACCOUNT: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_person),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details)
+            ],
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
                 MessageHandler(filters.Regex("^تغییر دادن 📝$"), change_choose_person),
                 MessageHandler(filters.Regex("^حذف کردن 🗑️$"), delete_choose_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
-            # Add Flow
-            ADD_CHOOSE_PERSON_TYPE: [MessageHandler(filters.Regex("^شخص جدید 👤$"), add_prompt_new_person_name), MessageHandler(filters.Regex("^شخص موجود 👥$"), add_choose_existing_person)],
-            ADD_NEW_PERSON_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_bank)],
-            ADD_CHOOSE_EXISTING_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_bank)],
-            ADD_ACCOUNT_BANK: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_bank)],
-            ADD_ACCOUNT_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_number)],
-            ADD_ACCOUNT_CARD: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_card)],
-            ADD_ACCOUNT_SHABA: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_shaba)],
-            ADD_ACCOUNT_PHOTO: [MessageHandler(filters.PHOTO | filters.TEXT, add_account_get_photo_and_save)],
-            # Delete Flow
-            DELETE_CHOOSE_TYPE: [MessageHandler(filters.Regex("^حذف شخص 👤$"), delete_choose_person), MessageHandler(filters.Regex("^حذف حساب 💳$"), delete_choose_account_for_person)],
-            DELETE_CHOOSE_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_person)],
-            DELETE_CONFIRM_PERSON: [MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_person_deletion), MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel)],
-            DELETE_CHOOSE_ACCOUNT_FOR_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_choose_account)],
-            DELETE_CHOOSE_ACCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_account)],
-            DELETE_CONFIRM_ACCOUNT: [MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_account_deletion), MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel)],
-            # Change Flow
-            CHANGE_CHOOSE_PERSON: [MessageHandler(filters.TEXT & ~filters.COMMAND, change_choose_target)],
-            CHANGE_CHOOSE_TARGET: [MessageHandler(filters.Regex("^تغییر نام شخص 👤$"), change_prompt_person_name), MessageHandler(filters.Regex("^ویرایش یک حساب 💳$"), change_choose_account)],
-            CHANGE_PROMPT_PERSON_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, change_save_person_name)],
-            CHANGE_CHOOSE_ACCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, change_choose_field)],
-            CHANGE_CHOOSE_FIELD: [MessageHandler(filters.TEXT & ~filters.COMMAND, change_prompt_field_value)],
-            CHANGE_PROMPT_FIELD_VALUE: [MessageHandler(filters.TEXT | filters.PHOTO, change_save_field_value)],
+            ADD_CHOOSE_PERSON_TYPE: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), edit_menu),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.Regex("^شخص جدید 👤$"), add_prompt_new_person_name),
+                MessageHandler(filters.Regex("^شخص موجود 👥$"), add_choose_existing_person)
+            ],
+            ADD_NEW_PERSON_NAME: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_bank)
+            ],
+            ADD_CHOOSE_EXISTING_PERSON: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_bank)
+            ],
+            ADD_ACCOUNT_BANK: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_bank)
+            ],
+            ADD_ACCOUNT_NUMBER: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_number)
+            ],
+            ADD_ACCOUNT_CARD: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_card)
+            ],
+            ADD_ACCOUNT_SHABA: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_shaba)
+            ],
+            ADD_ACCOUNT_PHOTO: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.PHOTO | filters.TEXT, add_account_get_photo_and_save)
+            ],
+            DELETE_CHOOSE_TYPE: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), edit_menu),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.Regex("^حذف شخص 👤$"), delete_choose_person),
+                MessageHandler(filters.Regex("^حذف حساب 💳$"), delete_choose_account_for_person)
+            ],
+            DELETE_CHOOSE_PERSON: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_person)
+            ],
+            DELETE_CONFIRM_PERSON: [
+                MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_person_deletion),
+                MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+            DELETE_CHOOSE_ACCOUNT_FOR_PERSON: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_choose_account)
+            ],
+            DELETE_CHOOSE_ACCOUNT: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_account_for_person),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_account)
+            ],
+            DELETE_CONFIRM_ACCOUNT: [
+                MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_account_deletion),
+                MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+            CHANGE_CHOOSE_PERSON: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), edit_menu),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, change_choose_target)
+            ],
+            CHANGE_CHOOSE_TARGET: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_person),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.Regex("^تغییر نام شخص 👤$"), change_prompt_person_name),
+                MessageHandler(filters.Regex("^ویرایش یک حساب 💳$"), change_choose_account)
+            ],
+            CHANGE_PROMPT_PERSON_NAME: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, change_save_person_name)
+            ],
+            CHANGE_CHOOSE_ACCOUNT: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, change_choose_field)
+            ],
+            CHANGE_CHOOSE_FIELD: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_account),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, change_prompt_field_value)
+            ],
+            CHANGE_PROMPT_FIELD_VALUE: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_field),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.TEXT | filters.PHOTO, change_save_field_value)
+            ],
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-            # Back Buttons
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & (filters.State(ADMIN_ADD_USER) | filters.State(ADMIN_REMOVE_USER)), admin_menu),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(VIEW_CHOOSE_ACCOUNT), view_choose_person),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & (filters.State(ADD_CHOOSE_PERSON_TYPE) | filters.State(DELETE_CHOOSE_TYPE) | filters.State(CHANGE_CHOOSE_PERSON)), edit_menu),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & (filters.State(ADD_NEW_PERSON_NAME) | filters.State(ADD_CHOOSE_EXISTING_PERSON)), add_choose_person_type),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & (filters.State(DELETE_CHOOSE_PERSON) | filters.State(DELETE_CHOOSE_ACCOUNT_FOR_PERSON)), delete_choose_type),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(CHANGE_CHOOSE_TARGET), change_choose_person),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(CHANGE_PROMPT_PERSON_NAME), change_choose_target),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(CHANGE_CHOOSE_ACCOUNT), change_choose_target),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(CHANGE_CHOOSE_FIELD), change_choose_account),
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & filters.State(CHANGE_PROMPT_FIELD_VALUE), change_choose_field),
-            # A general back for add account flow
-            MessageHandler(filters.Regex(f"^{BACK_BUTTON}$") & (filters.State(ADD_ACCOUNT_BANK) | filters.State(ADD_ACCOUNT_NUMBER) | filters.State(ADD_ACCOUNT_CARD) | filters.State(ADD_ACCOUNT_SHABA) | filters.State(ADD_ACCOUNT_PHOTO)), add_choose_person_type),
-
             CommandHandler("cancel", cancel),
-            MessageHandler(filters.ALL, start) # Catch-all
+            MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            MessageHandler(filters.ALL, start)
         ],
         per_message=False,
     )
@@ -766,3 +855,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
