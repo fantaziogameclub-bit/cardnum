@@ -180,8 +180,11 @@ def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: 
      # اضافه کردن دکمه‌های پایینی اگر وجود داشته باشند
     if footer_buttons:
         menu.extend(footer_buttons)
-
-    menu.append([HOME_BUTTON]) # Always show home button
+        # اگر دکمه "صفحه اصلی" در footer_buttons نیست، اضافه کن
+        if not any(HOME_BUTTON in row for row in footer_buttons):
+            menu.append([HOME_BUTTON])
+    else:
+        menu.append([HOME_BUTTON])
     return ReplyKeyboardMarkup(menu, resize_keyboard=True)
 
 
@@ -390,7 +393,7 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
             f"🔖 نام کاربری: {user_info['username']}\n\n"
             "آیا این کاربر را اضافه می‌کنید؟"
         )
-        keyboard = [[[YES_BUTTON], [NO_BUTTON]]]
+        keyboard = [[YES_BUTTON], [NO_BUTTON]]
         await update.message.reply_text(message, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
         return ADMIN_ADD_USER_CONFIRM
 
@@ -750,7 +753,7 @@ async def delete_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("هیچ شخصی برای حذف نیست.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu_paginated(buttons, 2,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام شخص را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_PERSON
 
@@ -759,7 +762,7 @@ async def delete_confirm_person(update: Update, context: ContextTypes.DEFAULT_TY
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return DELETE_CHOOSE_PERSON
     context.user_data['person_to_delete'] = {'id': person_id, 'name': person_name}
-    keyboard = [[[YES_BUTTON], [NO_BUTTON]], [HOME_BUTTON]]
+    keyboard = [[YES_BUTTON , NO_BUTTON], [HOME_BUTTON]]
     await update.message.reply_text(f"‼️ *اخطار نهایی*\nآیا از حذف '{person_name}' و تمام حساب‌هایش مطمئنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CONFIRM_PERSON
 
@@ -790,7 +793,7 @@ async def delete_choose_account_for_person(update: Update, context: ContextTypes
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu_paginated(buttons, 2,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("حساب مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
     return DELETE_CHOOSE_ACCOUNT_FOR_PERSON
 
@@ -803,7 +806,7 @@ async def delete_choose_account(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(f"هیچ حسابی برای '{person_name}' نیست.")
         return await delete_choose_account_for_person(update, context)
     buttons = list(context.user_data['accounts_list_dict'].keys())
-    keyboard = build_menu_paginated(buttons, 1, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"کدام حساب '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_ACCOUNT
 
@@ -813,7 +816,7 @@ async def delete_confirm_account(update: Update, context: ContextTypes.DEFAULT_T
     if not account_id: return DELETE_CHOOSE_ACCOUNT
     context.user_data['account_to_delete'] = {'id': account_id, 'key': account_key}
     # keyboard = [["بله، حذف کن ✅", "نه، لغو کن ❌"], [HOME_BUTTON]]
-    keyboard = [[[YES_BUTTON], [NO_BUTTON]], [HOME_BUTTON]]
+    keyboard = [[YES_BUTTON , NO_BUTTON], [HOME_BUTTON]]
 
     await update.message.reply_text(f"‼️ *اخطار نهایی*\nآیا از حذف حساب '{account_key}' مطمئنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CONFIRM_ACCOUNT
@@ -840,7 +843,7 @@ async def change_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("هیچ شخصی برای ویرایش وجود ندارد.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu_paginated(buttons, 2,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("اطلاعات کدام شخص را می‌خواهید تغییر دهید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_PERSON
 
@@ -907,7 +910,7 @@ async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
         return await change_choose_target(update, context)
     buttons = list(context.user_data['accounts_list_dict'].keys())
-    keyboard = build_menu_paginated(buttons, 1, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام حساب را ویرایش می‌کنید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_ACCOUNT
 
@@ -919,7 +922,7 @@ async def change_choose_field(update: Update, context: ContextTypes.DEFAULT_TYPE
         return CHANGE_CHOOSE_ACCOUNT
     context.user_data['change_account_id'] = account_id
     buttons = list(FIELD_TO_COLUMN_MAP.keys())
-    keyboard = build_menu_paginated(buttons, 2,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام فیلد را تغییر می‌دهید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_FIELD
 
