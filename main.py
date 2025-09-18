@@ -57,6 +57,8 @@ FINISH_SENDING_BUTTON = "اتمام ارسال ✅"
 NO_BUTTON = "نه ❌"
 YES_BUTTON = "بله ✅"
 DELETE_BUTTON = "حذف کردن 🗑️"
+YES_CONTINUE = "بله، ادامه✅"
+NO_EDIT = "خیر، ویرایش متن✏️"
 
 # Maps user-facing field names to database columns for the change flow
 FIELD_TO_COLUMN_MAP = {
@@ -616,7 +618,8 @@ async def add_get_doc_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     doc_text = None if update.message.text == SKIP_BUTTON else update.message.text
     context.user_data['new_doc']['text'] = doc_text
     # Simple confirmation for text
-    keyboard = [["بله، ادامه", "خیر، ویرایش متن"], [BACK_BUTTON, HOME_BUTTON]]
+    keyboard = [[YES_CONTINUE, NO_EDIT], [BACK_BUTTON, HOME_BUTTON]]
+
     await update.message.reply_text(f"متن ثبت شود؟\n---\n{doc_text or 'خالی'}\n---", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_DOC_FILES # State for confirmation before file upload
 
@@ -1167,12 +1170,13 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADD_DOC_TEXT: [
+                MessageHandler(filters.Regex(f"^{YES_CONTINUE}$"), add_prompt_doc_files),  # هدایت به مرحله ارسال فایل
+                MessageHandler(filters.Regex(f"^{NO_EDIT}$"), add_get_doc_text),  # برگشت به مرحله وارد کردن متن
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{SKIP_BUTTON}$"), add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_name),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
-
             ADD_DOC_FILES: [
                 MessageHandler(filters.PHOTO | filters.Document.ALL, add_get_doc_files),
                 MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
