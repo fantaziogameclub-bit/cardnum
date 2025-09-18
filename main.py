@@ -331,7 +331,7 @@ async def admin_prompt_remove_user(update: Update, context: ContextTypes.DEFAULT
                 await update.message.reply_text("هیچ کاربری برای حذف وجود ندارد.")
                 return await admin_menu(update, context)
             buttons = [f"{fn} ({tid})" for tid, fn in users]
-            keyboard = build_menu_paginated(buttons, 1, n_cols=2, footer_buttons=[[BACK_BUTTON]])
+            keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON]])
             await update.message.reply_text("کدام کاربر را حذف می‌کنید؟", reply_markup=keyboard)
             return ADMIN_REMOVE_USER
     finally: conn.close()
@@ -348,7 +348,7 @@ async def admin_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             cur.execute("DELETE FROM users WHERE telegram_id = %s;", (user_id_to_remove,))
             conn.commit()
             if cur.rowcount > 0:
-                await update.message.reply_text(f"✅ کاربر `{user_id_to_remove}` حذف شد.", parse_mode=ParseMode.MARKDOWN_V2)
+                await update.message.reply_text(f"✅ کاربر `{user_id_to_remove}` حذف شد.\\", parse_mode=ParseMode.MARKDOWN_V2)
                 try: await context.bot.send_message(chat_id=user_id_to_remove, text="🚫 دسترسی شما به ربات لغو شد.")
                 except Exception: pass
             else: await update.message.reply_text("کاربر یافت نشد.")
@@ -440,7 +440,7 @@ async def view_choose_person(update: Update, context: ContextTypes.DEFAULT_TYPE,
     page = context.user_data.get('page', page)
     context.user_data['page'] = page
     buttons = [p[1] for p in persons]
-    keyboard = build_menu_paginated(buttons, page=page, n_cols=2)
+    keyboard = build_menu_paginated(buttons, page=page, n_cols=2, footer_buttons=[[HOME_BUTTON]])
     await update.message.reply_text("اطلاعات کدام شخص را می‌خواهید؟", reply_markup=keyboard)
     return VIEW_CHOOSE_PERSON
 
@@ -470,17 +470,19 @@ async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data['selected_person_name'] = person_name
     
     accounts = await get_accounts_for_person_from_db(person_id, context)
-    if not accounts:
-        await update.message.reply_text(f"هیچ حسابی برای '{person_name}' ثبت نشده.")
-        # Re-display person list
-        persons = await get_persons_from_db(context)
-        buttons = [p[1] for p in persons]
-        keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[HOME_BUTTON]])
-        await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
-        return VIEW_CHOOSE_PERSON
-    
     buttons = list(context.user_data['accounts_list_dict'].keys())
-    keyboard = build_menu_paginated(buttons, 1, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    if not buttons:
+        await update.message.reply_text(f"هیچ حسابی برای '{person_name}' ثبت نشده.")
+        return VIEW_CHOOSE_PERSON
+        # # Re-display person list
+        # persons = await get_persons_from_db(context)
+        # buttons = [p[1] for p in persons]
+        # keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[HOME_BUTTON]])
+        # await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
+        # return VIEW_CHOOSE_PERSON
+    
+    
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
     return VIEW_CHOOSE_ACCOUNT
 
@@ -581,7 +583,7 @@ async def add_choose_existing_person(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("هیچ شخصی نیست. ابتدا 'شخص جدید' اضافه کنید.")
         return await add_choose_person_type(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("برای کدام شخص حساب اضافه می‌کنید؟", reply_markup=keyboard)
     return ADD_CHOOSE_EXISTING_PERSON
 
@@ -739,7 +741,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
 # I will write them out again to be complete as requested.
 async def delete_choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     keyboard = [["حذف شخص 👤", "حذف حساب 💳"], [BACK_BUTTON, HOME_BUTTON]]
-    await update.message.reply_text("قصد حذف چه چیزی را دارید؟\n\n⚠️ *توجه:* با حذف شخص، تمام حساب‌هایش نیز حذف می‌شود.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
+    await update.message.reply_text("قصد حذف چه چیزی را دارید؟\n\n⚠️ *توجه:* با حذف شخص، تمام حساب‌هایش نیز حذف می‌شود\\.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CHOOSE_TYPE
 
 async def delete_choose_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
