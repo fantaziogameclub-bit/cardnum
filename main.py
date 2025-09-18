@@ -1,6 +1,7 @@
 import os
 import logging
 import psycopg2
+import re
 from urllib.parse import urlparse
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
@@ -53,6 +54,9 @@ SKIP_BUTTON = "رد شدن ⏭️"
 NEXT_PAGE_BUTTON = "صفحه بعد ◀️"
 PREV_PAGE_BUTTON = "▶️ صفحه قبل"
 FINISH_SENDING_BUTTON = "اتمام ارسال ✅"
+NO_BUTTON = "نه ❌"
+YES_BUTTON = "بله ✅"
+DELETE_BUTTON = "حذف کردن 🗑️"
 
 # Maps user-facing field names to database columns for the change flow
 FIELD_TO_COLUMN_MAP = {
@@ -173,7 +177,6 @@ def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: 
 
     if pagination_controls:
         menu.append(pagination_controls)
-
      # اضافه کردن دکمه‌های پایینی اگر وجود داشته باشند
     if footer_buttons:
         menu.extend(footer_buttons)
@@ -387,7 +390,7 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
             f"🔖 نام کاربری: {user_info['username']}\n\n"
             "آیا این کاربر را اضافه می‌کنید؟"
         )
-        keyboard = [["بله، اضافه کن ✅", "نه، لغو کن ❌"]]
+        keyboard = [[[YES_BUTTON], [NO_BUTTON]]]
         await update.message.reply_text(message, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
         return ADMIN_ADD_USER_CONFIRM
 
@@ -434,6 +437,7 @@ async def view_choose_person(update: Update, context: ContextTypes.DEFAULT_TYPE,
         await update.message.reply_text("هیچ شخصی ثبت نشده. از منوی ویرایش، شخص جدید اضافه کنید.")
         return await start(update, context)
     
+    page = context.user_data.get('page', page)
     context.user_data['page'] = page
     buttons = [p[1] for p in persons]
     keyboard = build_menu_paginated(buttons, page=page, n_cols=2)
@@ -458,7 +462,7 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
 
 async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
-    person_id = context.user_data.get('persons_list', {}).get(person_name)
+    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id:
         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
         return VIEW_CHOOSE_PERSON
@@ -475,14 +479,14 @@ async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
         return VIEW_CHOOSE_PERSON
     
-    buttons = list(context.user_data['accounts_list'].keys())
+    buttons = list(context.user_data['accounts_list_dict'].keys())
     keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
     return VIEW_CHOOSE_ACCOUNT
 
 async def view_display_account_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     account_key = update.message.text
-    account_id = context.user_data.get('accounts_list', {}).get(account_key)
+    account_id = context.user_data.get('accounts_list_dict', {}).get(account_key)
     if not account_id:
         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
         return VIEW_CHOOSE_ACCOUNT
@@ -519,7 +523,7 @@ async def edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
         return MAIN_MENU
     
-    keyboard = [["اضافه کردن ➕"], ["تغییر دادن 📝", "حذف کردن 🗑️"], [HOME_BUTTON]]
+    keyboard = [["اضافه کردن ➕"], ["تغییر دادن 📝", [DELETE_BUTTON]], [HOME_BUTTON]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("منوی ویرایش:", reply_markup=reply_markup)
     context.user_data.clear() # Clear previous edit data
@@ -551,7 +555,9 @@ async def add_save_new_person_and_prompt_item_type(update: Update, context: Cont
             cur.execute("INSERT INTO persons (name) VALUES (%s) RETURNING id;", (person_name,))
             person_id = cur.fetchone()[0]
             conn.commit()
+            context.user_data['new_account'] = {}
             context.user_data['selected_person_id'] = person_id
+            context.user_data['new_account_person_id'] = person_id
             await update.message.reply_text(f"✅ شخص '{person_name}' اضافه شد.")
     except psycopg2.IntegrityError:
         await update.message.reply_text("❌ شخصی با این نام وجود دارد.")
@@ -565,7 +571,7 @@ async def add_save_new_person_and_prompt_item_type(update: Update, context: Cont
     await update.message.reply_text("چه نوع اطلاعاتی ثبت می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_CHOOSE_ITEM_TYPE
 
-    # context.user_data['new_account'] = {}
+    
     # await update.message.reply_text("۱/۵ - نام بانک:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     # return ADD_ACCOUNT_BANK
 
@@ -584,6 +590,7 @@ async def add_set_existing_person_and_prompt_item_type(update: Update, context: 
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return ADD_CHOOSE_EXISTING_PERSON
     context.user_data['selected_person_id'] = person_id
+    context.user_data['new_account_person_id'] = person_id
     # context.user_data['new_account'] = {}
     keyboard = [["حساب بانکی 💳", "مدرک 📄"], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("چه نوع اطلاعاتی ثبت می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
@@ -683,14 +690,22 @@ async def add_account_get_number(update: Update, context: ContextTypes.DEFAULT_T
     return ADD_ACCOUNT_CARD
 
 async def add_account_get_card(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['new_account']['card_number'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    # await update.message.reply_text("۴/۵ - شماره شبا (بدون IR):", reply_markup=update.message.reply_keyboard)
+    card_number = None if update.message.text == SKIP_BUTTON else update.message.text.strip()
+    # اعتبارسنجی شماره کارت (16 رقم و شروع با 6 یا 5 یا 4)
+    if card_number and not re.fullmatch(r"(4|5|6)\d{15}", card_number):
+        await update.message.reply_text("⚠️ شماره کارت معتبر نیست. شماره کارت باید ۱۶ رقم و با 4 یا 5 یا 6 شروع شود.")
+        return ADD_ACCOUNT_CARD
+    context.user_data['new_account']['card_number'] = card_number
     await update.message.reply_text("۴/۵ - شماره شبا (بدون IR):", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_SHABA
 
 async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['new_account']['shaba_number'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    # await update.message.reply_text("۵/۵ - تصویر کارت:", reply_markup=update.message.reply_keyboard)
+    shaba_number = None if update.message.text == SKIP_BUTTON else update.message.text.strip()
+    # اعتبارسنجی شماره شبا (24 رقم و فقط عدد، بدون IR)
+    if shaba_number and not re.fullmatch(r"\d{24}", shaba_number):
+        await update.message.reply_text("⚠️ شماره شبا معتبر نیست. باید ۲۴ رقم و فقط عدد باشد (بدون IR).")
+        return ADD_ACCOUNT_SHABA
+    context.user_data['new_account']['shaba_number'] = shaba_number
     await update.message.reply_text("۵/۵ - تصویر کارت:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_PHOTO
 
@@ -739,10 +754,10 @@ async def delete_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def delete_confirm_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
-    person_id = context.user_data.get('persons_list', {}).get(person_name)
+    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return DELETE_CHOOSE_PERSON
     context.user_data['person_to_delete'] = {'id': person_id, 'name': person_name}
-    keyboard = [["بله، حذف کن ✅", "نه، لغو کن ❌"], [HOME_BUTTON]]
+    keyboard = [[[YES_BUTTON], [NO_BUTTON]], [HOME_BUTTON]]
     await update.message.reply_text(f"‼️ *اخطار نهایی*\nآیا از حذف '{person_name}' و تمام حساب‌هایش مطمئنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CONFIRM_PERSON
 
@@ -779,23 +794,25 @@ async def delete_choose_account_for_person(update: Update, context: ContextTypes
 
 async def delete_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
-    person_id = context.user_data.get('persons_list', {}).get(person_name)
+    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return DELETE_CHOOSE_ACCOUNT_FOR_PERSON
     accounts = await get_accounts_for_person_from_db(person_id, context)
     if not accounts:
         await update.message.reply_text(f"هیچ حسابی برای '{person_name}' نیست.")
         return await delete_choose_account_for_person(update, context)
-    buttons = list(context.user_data['accounts_list'].keys())
+    buttons = list(context.user_data['accounts_list_dict'].keys())
     keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"کدام حساب '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_ACCOUNT
 
 async def delete_confirm_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     account_key = update.message.text
-    account_id = context.user_data.get('accounts_list', {}).get(account_key)
+    account_id = context.user_data.get('accounts_list_dict', {}).get(account_key)
     if not account_id: return DELETE_CHOOSE_ACCOUNT
     context.user_data['account_to_delete'] = {'id': account_id, 'key': account_key}
-    keyboard = [["بله، حذف کن ✅", "نه، لغو کن ❌"], [HOME_BUTTON]]
+    # keyboard = [["بله، حذف کن ✅", "نه، لغو کن ❌"], [HOME_BUTTON]]
+    keyboard = [[[YES_BUTTON], [NO_BUTTON]], [HOME_BUTTON]]
+
     await update.message.reply_text(f"‼️ *اخطار نهایی*\nآیا از حذف حساب '{account_key}' مطمئنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CONFIRM_ACCOUNT
 
@@ -827,7 +844,7 @@ async def change_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def change_choose_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
-    person_id = context.user_data.get('persons_list', {}).get(person_name)
+    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id:
         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
         return CHANGE_CHOOSE_PERSON
@@ -835,6 +852,28 @@ async def change_choose_target(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [["تغییر نام شخص 👤", "ویرایش یک حساب 💳"], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text(f"چه تغییری برای '{person_name}' ایجاد می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return CHANGE_CHOOSE_TARGET
+
+async def change_update_person_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """ذخیره نام جدید شخص انتخاب‌شده."""
+    new_name = context.user_data.get('person_new_name')
+    person_id = context.user_data.get('person_id')
+    if not (new_name and person_id):
+        await update.message.reply_text("⚠️ اطلاعات کافی برای ذخیره تغییرات موجود نیست.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+        return MAIN_MENU
+    conn = get_db_connection()
+    if not conn:
+        await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+        return MAIN_MENU
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE persons SET name = %s WHERE id = %s;", (new_name, person_id))
+            conn.commit()
+        await update.message.reply_text("✅ نام شخص با موفقیت تغییر یافت.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در تغییر نام: {e}", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+    finally:
+        conn.close()
+    return MAIN_MENU
 
 async def change_prompt_person_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = context.user_data.get('change_person', {}).get('name', 'این شخص')
@@ -865,14 +904,14 @@ async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TY
     if not accounts:
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
         return await change_choose_target(update, context)
-    buttons = list(context.user_data['accounts_list'].keys())
+    buttons = list(context.user_data['accounts_list_dict'].keys())
     keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام حساب را ویرایش می‌کنید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_ACCOUNT
 
 async def change_choose_field(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     account_key = update.message.text
-    account_id = context.user_data.get('accounts_list', {}).get(account_key)
+    account_id = context.user_data.get('accounts_list_dict', {}).get(account_key)
     if not account_id:
         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
         return CHANGE_CHOOSE_ACCOUNT
@@ -881,6 +920,29 @@ async def change_choose_field(update: Update, context: ContextTypes.DEFAULT_TYPE
     keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام فیلد را تغییر می‌دهید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_FIELD
+
+async def change_update_field_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """ذخیره مقدار جدید فیلد انتخاب‌شده در دیتابیس."""
+    user_input = context.user_data.get('field_value')
+    field_column = context.user_data.get('field_column')
+    account_id = context.user_data.get('account_id')
+    if not (field_column and account_id):
+        await update.message.reply_text("⚠️ اطلاعات کافی برای ذخیره تغییرات موجود نیست.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+        return MAIN_MENU
+    conn = get_db_connection()
+    if not conn:
+        await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+        return MAIN_MENU
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE accounts SET {field_column} = %s WHERE id = %s;", (user_input, account_id))
+            conn.commit()
+        await update.message.reply_text("✅ تغییرات با موفقیت ذخیره شد.", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+    except Exception as e:
+        await update.message.reply_text(f"❌ خطا در ذخیره تغییرات: {e}", reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True))
+    finally:
+        conn.close()
+    return MAIN_MENU
 
 async def change_prompt_field_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     field_name = update.message.text
@@ -891,7 +953,6 @@ async def change_prompt_field_value(update: Update, context: ContextTypes.DEFAUL
     prompt = f"مقدار جدید را برای '{field_name}' وارد کنید (یا عکس بفرستید):"
     if field_name != "عکس کارت 🖼️":
         prompt = f"مقدار جدید را برای '{field_name}' وارد کنید:"
-    
     await update.message.reply_text(prompt, reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return CHANGE_PROMPT_FIELD_VALUE
 
@@ -899,11 +960,9 @@ async def change_save_field_value(update: Update, context: ContextTypes.DEFAULT_
     field_name = context.user_data.get('change_field')
     account_id = context.user_data.get('change_account_id')
     column_name = FIELD_TO_COLUMN_MAP.get(field_name)
-    
     if not all([field_name, account_id, column_name]):
         await update.message.reply_text("خطای داخلی. لطفاً دوباره تلاش کنید.")
         return await edit_menu(update, context)
-
     new_value = None
     if update.message.text == SKIP_BUTTON:
         new_value = None
@@ -917,7 +976,6 @@ async def change_save_field_value(update: Update, context: ContextTypes.DEFAULT_
         else:
             await update.message.reply_text("لطفاً یک مقدار متنی وارد کنید، رد شوید یا بازگردید.")
             return CHANGE_PROMPT_FIELD_VALUE
-
     conn = get_db_connection()
     if not conn: return await edit_menu(update, context)
     try:
@@ -931,7 +989,6 @@ async def change_save_field_value(update: Update, context: ContextTypes.DEFAULT_
     except psycopg2.Error as e:
         await update.message.reply_text(f"❌ خطایی در به‌روزرسانی فیلد رخ داد: {e}")
     finally: conn.close()
-    
     # Cleanup and return
     for key in ['change_person', 'change_account_id', 'change_field']:
         context.user_data.pop(key, None)
@@ -987,7 +1044,7 @@ def main() -> None:
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
                 MessageHandler(filters.Regex("^تغییر دادن 📝$"), change_choose_person),
-                MessageHandler(filters.Regex(r"^حذف کردن 🗑\uFE0F?$"), delete_choose_type),
+                MessageHandler(filters.Regex(f"^{DELETE_BUTTON}$"), delete_choose_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADD_CHOOSE_PERSON_TYPE: [
@@ -1049,8 +1106,8 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_person)
             ],
             DELETE_CONFIRM_PERSON: [
-                MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_person_deletion),
-                MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel),
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), delete_execute_person_deletion),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), delete_cancel),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             DELETE_CHOOSE_ACCOUNT_FOR_PERSON: [
@@ -1064,8 +1121,8 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, delete_confirm_account)
             ],
             DELETE_CONFIRM_ACCOUNT: [
-                MessageHandler(filters.Regex("^بله، حذف کن ✅$"), delete_execute_account_deletion),
-                MessageHandler(filters.Regex("^نه، لغو کن ❌$"), delete_cancel),
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), delete_execute_account_deletion),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), delete_cancel),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             CHANGE_CHOOSE_PERSON: [
@@ -1099,6 +1156,46 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.TEXT | filters.PHOTO, change_save_field_value)
             ],
+            ADD_DOC_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_doc_name),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+            ADD_DOC_TEXT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_doc_text),
+                MessageHandler(filters.Regex(f"^{SKIP_BUTTON}$"), add_get_doc_text),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_name),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+
+            ADD_DOC_FILES: [
+                MessageHandler(filters.PHOTO | filters.Document.ALL, add_get_doc_files),
+                MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_text),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+
+            ADD_DOC_SAVE: [
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), add_save_document),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), add_prompt_doc_name),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+
+            CHANGE_SAVE_FIELD_VALUE: [
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), change_update_field_value),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), change_prompt_field_value),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_field),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+
+            CHANGE_SAVE_PERSON_NAME: [
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), change_update_person_name),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), change_prompt_person_name),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+
+
         },
         fallbacks=[
             CommandHandler("start", start),
