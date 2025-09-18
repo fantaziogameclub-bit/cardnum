@@ -13,6 +13,7 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
+from typing import Optional
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -131,16 +132,23 @@ def setup_database():
         conn.close()
 
 # --- Helper Functions ---
-# def is_authorized(user_id: int) -> bool:
-#     """Checks if a user is authorized to use the bot."""
-#     conn = get_db_connection()
-#     if not conn: return False
-#     try:
-#         with conn.cursor() as cur:
-#             cur.execute("SELECT 1 FROM users WHERE telegram_id = %s;", (user_id,))
-#             return cur.fetchone() is not None
-#     finally:
-#         conn.close()
+
+def is_authorized(user_id: int) -> Optional[bool]:
+    """Checks if a user is authorized to use the bot.
+    Returns:
+        True  -> user is authorized
+        False -> user is NOT authorized
+        None  -> database connection error
+    """
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM users WHERE telegram_id = %s;", (user_id,))
+            return cur.fetchone() is not None
+    finally:
+        conn.close()
 
 
 def is_admin(user_id: int) -> bool:
@@ -148,20 +156,13 @@ def is_admin(user_id: int) -> bool:
     return user_id == ADMIN_TELEGRAM_ID
 
 def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: int = 10):
-# def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
-#     """Creates a ReplyKeyboardMarkup from a list of buttons."""
-#     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-#     if header_buttons:
-#         menu.insert(0, header_buttons)
-#     if footer_buttons:
-#         menu.extend(footer_buttons)
-#     return ReplyKeyboardMarkup(menu, resize_keyboard=True)
+
     """Creates a paginated ReplyKeyboardMarkup."""
     start_index = page * items_per_page
     end_index = start_index + items_per_page
     paginated_buttons = buttons[start_index:end_index]
 
-    # menu = [paginated _buttons[i:i + n_cols] for i in range(0, len(paginated_buttons), n_cols)]
+    menu = [paginated_buttons[i:i + n_cols] for i in range(0, len(paginated_buttons), n_cols)]
 
     pagination_controls = []
     if page > 0:
@@ -183,7 +184,7 @@ async def get_persons_from_db(context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
         chat_id=context._chat_id_and_data[0],
         text="⚠️ خطا در اتصال به پایگاه داده. لطفاً بعداً دوباره تلاش کنید."
-    )
+        )
         return MAIN_MENU
     try:
         with conn.cursor() as cur:
@@ -216,15 +217,21 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
 # --- Start & Main Menu Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
-    if not is_authorized(user.id):
-        # --- CHANGE 1: Tell new user their ID ---
-        await update.message.reply_text(
-            "🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
-            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user.id}`",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-        # await update.message.reply_text("🚫 شما اجازه دسترسی به این ربات را ندارید.")
+    auth_status = is_authorized(user.id)
+    if auth_status is None:
+        await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده. لطفاً بعداً دوباره تلاش کنید.")
         return ConversationHandler.END
+
+    if auth_status is False:
+        await update.message.reply_text(
+          "🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
+          f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user.id}`",
+         parse_mode=ParseMode.MARKDOWN_V2
+        )
+        return ConversationHandler.END
+
+# ادامه کار وقتی کاربر مجاز است...
+
 
     conn = get_db_connection()
     if conn:
@@ -316,7 +323,7 @@ async def admin_prompt_remove_user(update: Update, context: ContextTypes.DEFAULT
                 await update.message.reply_text("هیچ کاربری برای حذف وجود ندارد.")
                 return await admin_menu(update, context)
             buttons = [f"{fn} ({tid})" for tid, fn in users]
-            keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON]])
+            keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON]])
             await update.message.reply_text("کدام کاربر را حذف می‌کنید؟", reply_markup=keyboard)
             return ADMIN_REMOVE_USER
     finally: conn.close()
@@ -459,12 +466,12 @@ async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Re-display person list
         persons = await get_persons_from_db(context)
         buttons = [p[1] for p in persons]
-        keyboard = build_menu(buttons, 2, footer_buttons=[[HOME_BUTTON]])
+        keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[HOME_BUTTON]])
         await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
         return VIEW_CHOOSE_PERSON
     
     buttons = list(context.user_data['accounts_list'].keys())
-    keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
     return VIEW_CHOOSE_ACCOUNT
 
@@ -563,7 +570,7 @@ async def add_choose_existing_person(update: Update, context: ContextTypes.DEFAU
         await update.message.reply_text("هیچ شخصی نیست. ابتدا 'شخص جدید' اضافه کنید.")
         return await add_choose_person_type(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("برای کدام شخص حساب اضافه می‌کنید؟", reply_markup=keyboard)
     return ADD_CHOOSE_EXISTING_PERSON
 
@@ -721,7 +728,7 @@ async def delete_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("هیچ شخصی برای حذف نیست.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام شخص را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_PERSON
 
@@ -761,7 +768,7 @@ async def delete_choose_account_for_person(update: Update, context: ContextTypes
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("حساب مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
     return DELETE_CHOOSE_ACCOUNT_FOR_PERSON
 
@@ -774,7 +781,7 @@ async def delete_choose_account(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(f"هیچ حسابی برای '{person_name}' نیست.")
         return await delete_choose_account_for_person(update, context)
     buttons = list(context.user_data['accounts_list'].keys())
-    keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"کدام حساب '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_ACCOUNT
 
@@ -809,7 +816,7 @@ async def change_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("هیچ شخصی برای ویرایش وجود ندارد.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
-    keyboard = build_menu(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("اطلاعات کدام شخص را می‌خواهید تغییر دهید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_PERSON
 
@@ -854,7 +861,7 @@ async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
         return await change_choose_target(update, context)
     buttons = list(context.user_data['accounts_list'].keys())
-    keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 1, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام حساب را ویرایش می‌کنید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_ACCOUNT
 
@@ -866,7 +873,7 @@ async def change_choose_field(update: Update, context: ContextTypes.DEFAULT_TYPE
         return CHANGE_CHOOSE_ACCOUNT
     context.user_data['change_account_id'] = account_id
     buttons = list(FIELD_TO_COLUMN_MAP.keys())
-    keyboard = build_menu(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    keyboard = build_menu_paginated(buttons, 2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام فیلد را تغییر می‌دهید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_FIELD
 
@@ -987,12 +994,12 @@ def main() -> None:
             ADD_NEW_PERSON_NAME: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_bank)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_item_type)
             ],
             ADD_CHOOSE_EXISTING_PERSON: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_bank)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_item_type)
             ],
             ADD_ACCOUNT_BANK: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
