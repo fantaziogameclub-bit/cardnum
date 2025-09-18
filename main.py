@@ -155,7 +155,7 @@ def is_admin(user_id: int) -> bool:
     """Checks if a user is the admin."""
     return user_id == ADMIN_TELEGRAM_ID
 
-def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: int = 10):
+def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: int = 10, footer_buttons=None):
 
     """Creates a paginated ReplyKeyboardMarkup."""
     start_index = page * items_per_page
@@ -164,6 +164,7 @@ def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: 
 
     menu = [paginated_buttons[i:i + n_cols] for i in range(0, len(paginated_buttons), n_cols)]
 
+    # کنترل صفحه‌بندی
     pagination_controls = []
     if page > 0:
         pagination_controls.append(PREV_PAGE_BUTTON)
@@ -172,6 +173,10 @@ def build_menu_paginated(buttons: list, page: int, n_cols: int, items_per_page: 
 
     if pagination_controls:
         menu.append(pagination_controls)
+
+     # اضافه کردن دکمه‌های پایینی اگر وجود داشته باشند
+    if footer_buttons:
+        menu.extend(footer_buttons)
 
     menu.append([HOME_BUTTON]) # Always show home button
     return ReplyKeyboardMarkup(menu, resize_keyboard=True)
@@ -972,10 +977,10 @@ def main() -> None:
             ],
             VIEW_CHOOSE_PERSON: [
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_person)
             ],
             VIEW_CHOOSE_ACCOUNT: [
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_person),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_account),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details)
             ],
@@ -1025,6 +1030,12 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.PHOTO | filters.TEXT, add_account_get_photo_and_save)
+            ],
+            ADD_CHOOSE_ITEM_TYPE: [
+                MessageHandler(filters.Regex("^حساب بانکی 💳$"), add_account_get_bank),
+                MessageHandler(filters.Regex("^مدرک 📄$"), add_prompt_doc_name),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             DELETE_CHOOSE_TYPE: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), edit_menu),
