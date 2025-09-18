@@ -305,41 +305,41 @@ async def admin_prompt_add_user(update: Update, context: ContextTypes.DEFAULT_TY
 #     finally: conn.close()
 #     return await admin_menu(update, context)
 
-# async def admin_prompt_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-#     conn = get_db_connection()
-#     if not conn: return await admin_menu(update, context)
-#     try:
-#         with conn.cursor() as cur:
-#             cur.execute("SELECT telegram_id, first_name FROM users WHERE telegram_id != %s;", (ADMIN_TELEGRAM_ID,))
-#             users = cur.fetchall()
-#             if not users:
-#                 await update.message.reply_text("هیچ کاربری برای حذف وجود ندارد.")
-#                 return await admin_menu(update, context)
-#             buttons = [f"{fn} ({tid})" for tid, fn in users]
-#             keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON]])
-#             await update.message.reply_text("کدام کاربر را حذف می‌کنید؟", reply_markup=keyboard)
-#             return ADMIN_REMOVE_USER
-#     finally: conn.close()
+async def admin_prompt_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    conn = get_db_connection()
+    if not conn: return await admin_menu(update, context)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT telegram_id, first_name FROM users WHERE telegram_id != %s;", (ADMIN_TELEGRAM_ID,))
+            users = cur.fetchall()
+            if not users:
+                await update.message.reply_text("هیچ کاربری برای حذف وجود ندارد.")
+                return await admin_menu(update, context)
+            buttons = [f"{fn} ({tid})" for tid, fn in users]
+            keyboard = build_menu(buttons, 1, footer_buttons=[[BACK_BUTTON]])
+            await update.message.reply_text("کدام کاربر را حذف می‌کنید؟", reply_markup=keyboard)
+            return ADMIN_REMOVE_USER
+    finally: conn.close()
 
-# async def admin_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-#     try: user_id_to_remove = int(update.message.text.split('(')[-1].strip(')'))
-#     except (ValueError, TypeError, IndexError):
-#         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
-#         return ADMIN_REMOVE_USER
-#     conn = get_db_connection()
-#     if not conn: return await admin_menu(update, context)
-#     try:
-#         with conn.cursor() as cur:
-#             cur.execute("DELETE FROM users WHERE telegram_id = %s;", (user_id_to_remove,))
-#             conn.commit()
-#             if cur.rowcount > 0:
-#                 await update.message.reply_text(f"✅ کاربر `{user_id_to_remove}` حذف شد.", parse_mode=ParseMode.MARKDOWN_V2)
-#                 try: await context.bot.send_message(chat_id=user_id_to_remove, text="🚫 دسترسی شما به ربات لغو شد.")
-#                 except Exception: pass
-#             else: await update.message.reply_text("کاربر یافت نشد.")
-#     except psycopg2.Error: await update.message.reply_text("❌ خطایی در حذف رخ داد.")
-#     finally: conn.close()
-#     return await admin_menu(update, context)
+async def admin_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    try: user_id_to_remove = int(update.message.text.split('(')[-1].strip(')'))
+    except (ValueError, TypeError, IndexError):
+        await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
+        return ADMIN_REMOVE_USER
+    conn = get_db_connection()
+    if not conn: return await admin_menu(update, context)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE telegram_id = %s;", (user_id_to_remove,))
+            conn.commit()
+            if cur.rowcount > 0:
+                await update.message.reply_text(f"✅ کاربر `{user_id_to_remove}` حذف شد.", parse_mode=ParseMode.MARKDOWN_V2)
+                try: await context.bot.send_message(chat_id=user_id_to_remove, text="🚫 دسترسی شما به ربات لغو شد.")
+                except Exception: pass
+            else: await update.message.reply_text("کاربر یافت نشد.")
+    except psycopg2.Error: await update.message.reply_text("❌ خطایی در حذف رخ داد.")
+    finally: conn.close()
+    return await admin_menu(update, context)
 
 # --- Admin Add User Confirmation Flow ---
 
