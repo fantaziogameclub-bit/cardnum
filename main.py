@@ -32,7 +32,7 @@ except KeyError as e:
 # --- Conversation States ---
 (
     MAIN_MENU,
-    ADMIN_MENU, ADMIN_ADD_USER, ADMIN_ADD_USER_CONFIRM, ADMIN_REMOVE_USER,
+    ADMIN_MENU, ADMIN_ADD_USER_CONFIRM, ADMIN_REMOVE_USER,
     VIEW_CHOOSE_PERSON, VIEW_CHOOSE_ACCOUNT,
     EDIT_MENU,
     ADD_CHOOSE_PERSON_TYPE, ADD_NEW_PERSON_NAME, ADD_CHOOSE_EXISTING_PERSON,
@@ -43,7 +43,7 @@ except KeyError as e:
     DELETE_CHOOSE_ACCOUNT_FOR_PERSON, DELETE_CHOOSE_ACCOUNT, DELETE_CONFIRM_ACCOUNT,
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
-) = range(35)
+) = range(34)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
@@ -274,7 +274,7 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def admin_prompt_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("شناسه عددی تلگرام کاربر جدید را وارد کنید:", reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True))
-    return ADMIN_ADD_USER
+    return ADMIN_ADD_USER_CONFIRM
 
 # --- Admin Add User Confirmation Flow ---
 
@@ -348,7 +348,7 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
         user_id_to_add = int(update.message.text)
     except (ValueError, TypeError):
         await update.message.reply_text("❌ شناسه نامعتبر است. یک عدد وارد کنید.")
-        return ADMIN_ADD_USER
+        return ADMIN_ADD_USER_CONFIRM
 
     # Check if user already exists
     conn = get_db_connection()
@@ -381,7 +381,7 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
 
     except BadRequest:
         await update.message.reply_text("❌ کاربری با این شناسه یافت نشد. شناسه را بررسی کنید.")
-        return ADMIN_ADD_USER
+        return ADMIN_ADD_USER_CONFIRM
     except Exception as e:
         logger.error(f"Error in admin_add_user_confirm for ID {user_id_to_add}: {e}", exc_info=True)
         await update.message.reply_text("خطایی در دریافت اطلاعات کاربر رخ داد.")
@@ -955,9 +955,9 @@ def main() -> None:
                 MessageHandler(filters.Regex("^حذف کاربر ➖$"), admin_prompt_remove_user),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
-            ADMIN_ADD_USER: [
+            ADMIN_ADD_USER_CONFIRM: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm)
             ],
             ADMIN_REMOVE_USER: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
