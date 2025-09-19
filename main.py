@@ -15,6 +15,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from typing import Optional
+from telegram.helpers import escape_markdown
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -230,18 +231,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if auth_status is False:
         await update.message.reply_text(
-           f"""🚫 شما اجازه دسترسی به این ربات را ندارید.
-           برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:
-           `{user.id}`""",
-         parse_mode=ParseMode.MARKDOWN_V2
+    f"""🚫 شما اجازه دسترسی به این ربات را ندارید.
+برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:
+`{escape_markdown(str(user.id), version=2)}`""",
+    parse_mode=ParseMode.MARKDOWN_V2
         )
         try:
             await context.bot.send_message(
                 chat_id=ADMIN_TELEGRAM_ID,
-                text=f"""📥 درخواست دسترسی جدید!
-                 👤 کاربر: {user.first_name}
-                 🆔 شناسه: `{user.id}`
-                 برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید.""",
+                text = f"""📥 درخواست دسترسی جدید!
+
+👤 کاربر: {escape_markdown(user.first_name, version=2)}
+🆔 شناسه: `{escape_markdown(str(user.id), version=2)}`
+
+برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید.""",
+
                 parse_mode=ParseMode.MARKDOWN_V2
             )
         except Exception as e:
@@ -296,8 +300,12 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         with conn.cursor() as cur:
             cur.execute("SELECT telegram_id, first_name FROM users ORDER BY first_name;")
             users = cur.fetchall()
-            message = "لیست کاربران مجاز:\n\n" + "\n".join([f"👤 {fn}\n🆔 `{tid}`" for tid, fn in users]) if users else "هیچ کاربری ثبت نشده."
+            message = "لیست کاربران مجاز:\n\n" + "\n".join([
+    f"👤 {escape_markdown(fn, version=2)}\n🆔 `{escape_markdown(str(tid), version=2)}`"
+    for tid, fn in users
+            ]) if users else "هیچ کاربری ثبت نشده."
             await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+
     finally: conn.close()
     return ADMIN_MENU
 
