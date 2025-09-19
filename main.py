@@ -60,8 +60,8 @@ DELETE_BUTTON = "حذف کردن 🗑️"
 YES_CONTINUE = "بله، ادامه✅"
 NO_EDIT = "خیر، ویرایش متن✏️"
 
-# Maps user-facing field names to database columns for the change flow
 FIELD_TO_COLUMN_MAP = {
+    "نام حساب 🧾": "account_name", # PATCH 1: Added account_name
     "نام بانک 🏦": "bank_name",
     "شماره حساب 🔢": "account_number",
     "شماره کارت 💳": "card_number",
@@ -71,7 +71,6 @@ FIELD_TO_COLUMN_MAP = {
 
 # --- Database Functions ---
 def get_db_connection():
-    """Establishes a connection to the PostgreSQL database."""
     try:
         result = urlparse(DATABASE_URL)
         conn = psycopg2.connect(
@@ -109,6 +108,7 @@ def setup_database():
                 CREATE TABLE IF NOT EXISTS accounts (
                     id SERIAL PRIMARY KEY,
                     person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+                    account_name TEXT NOT NULL,
                     bank_name TEXT,
                     account_number TEXT,
                     card_number TEXT,
@@ -140,15 +140,8 @@ def setup_database():
 # --- Helper Functions ---
 
 def is_authorized(user_id: int) -> Optional[bool]:
-    """Checks if a user is authorized to use the bot.
-    Returns:
-        True  -> user is authorized
-        False -> user is NOT authorized
-        None  -> database connection error
-    """
     conn = get_db_connection()
-    if not conn:
-        return None
+    if not conn: return None
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT 1 FROM users WHERE telegram_id = %s;", (user_id,))
@@ -222,7 +215,7 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
             # Use a more robust key, e.g., combining bank, card, and id
             # context.user_data['accounts_list'] = {f"{acc[1] or 'N/A'} - {acc[2] or 'N/A'} ({acc[0]})": acc[0] for acc in accounts}
             context.user_data['accounts_list_tuples'] = accounts
-            context.user_data['accounts_list_dict'] = {f"{acc[1] or 'N/A'} ({acc[0]})": acc[0] for acc in accounts}
+            context.user_data['accounts_list_dict'] = {f"{acc[1]} ({acc[2] or 'N/A'})": acc[0] for acc in accounts}
             return accounts
     finally:
         conn.close()
@@ -241,6 +234,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
           f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user.id}`",
          parse_mode=ParseMode.MARKDOWN_V2
         )
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_TELEGRAM_ID,
+                text=f"""📥 درخواست دسترسی جدید!
+                
+👤 کاربر: {user.first_name}
+🆔 شناسه: `{user.id}`
+                
+برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید.""",
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+        except Exception as e:
+            logger.error(f"Failed to send new user notification to admin: {e}")
         return ConversationHandler.END
 
 # ادامه کار وقتی کاربر مجاز است...
@@ -267,6 +273,10 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     return await start(update, context)
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    await update.message.reply_text("عملیات لغو شد.", reply_markup=ReplyKeyboardRemove())
+    return await main_menu(update, context)
+    
 # --- Admin Flow Handlers (Copied from previous version, unchanged) ---
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not is_admin(update.effective_user.id):
@@ -464,7 +474,7 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
     keyboard = [["شخص جدید 👤", "شخص موجود 👥"], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("برای چه کسی اطلاعات اضافه می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_CHOOSE_PERSON_TYPE
-
+#
 async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
@@ -523,7 +533,41 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
                 except: await update.message.reply_text("⚠️ تصویر کارت قابل بارگذاری نبود.")
     finally: conn.close()
     return VIEW_CHOOSE_ACCOUNT # Stay in the same state to allow viewing another account
+#_____________________----$$$$$$$$$$$$$$------_______
+# --- ADD FLOW ---
+async def add_choose_item_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # This function is reached after a person is selected or created
+    keyboard = [["حساب بانکی 💳"], ["مدرک 📑"], [BACK_BUTTON, HOME_BUTTON]]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text("چه نوع اطلاعاتی می‌خواهید اضافه کنید؟", reply_markup=reply_markup)
+    return ADD_CHOOSE_ITEM_TYPE
 
+# --- PATCH 1: New functions for adding account name ---
+async def add_prompt_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Asks for a custom name for the bank account."""
+    context.user_data['new_account'] = {}
+    await update.message.reply_text(
+        "یک نام برای این حساب انتخاب کنید (مثال: حساب حقوق، حساب شخصی).",
+        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True)
+    )
+    return ADD_ACCOUNT_NAME
+
+async def add_get_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Stores the account name and proceeds to ask for the bank name."""
+    account_name = update.message.text
+    if not account_name or len(account_name.strip()) == 0:
+        await update.message.reply_text("لطفاً یک نام معتبر وارد کنید.")
+        return ADD_ACCOUNT_NAME
+    
+    context.user_data['new_account']['account_name'] = account_name.strip()
+    
+    await update.message.reply_text(
+        "نام بانک را وارد کنید:",
+        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, SKIP_BUTTON]], resize_keyboard=True)
+    )
+    return ADD_ACCOUNT_BANK
+    
+#_____________________====$$$$$$$$$$=====________
 # --- Edit Menu ---
 async def edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not is_admin(update.effective_user.id):
@@ -628,23 +672,30 @@ async def add_prompt_doc_files(update: Update, context: ContextTypes.DEFAULT_TYP
     keyboard = [[FINISH_SENDING_BUTTON], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("عکس‌ها و فایل‌های مدرک را ارسال کنید. پس از اتمام، دکمه 'اتمام ارسال' را بزنید.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_DOC_FILES
+#______÷÷÷÷÷÷÷÷÷÷÷÷_______________÷÷÷÷÷÷÷____
 
 async def add_get_doc_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Receives photos or documents and stores their file_ids."""
+    if 'doc_files' not in context.user_data:
+        context.user_data['doc_files'] = []
+
     file_id = None
     if update.message.photo:
-        file_id = update.message.photo[-1].file_id
+        file_id = update.message.photo[-1].file_id # Get highest quality
     elif update.message.document:
         file_id = update.message.document.file_id
-    
+
     if file_id:
-        context.user_data['new_doc']['files'].append(file_id)
-        await update.message.reply_text(f"فایل دریافت شد. ({len(context.user_data['new_doc']['files'])} مورد تا الان)")
+        context.user_data['doc_files'].append(file_id)
+        await update.message.reply_text(
+            f"✅ فایل دریافت شد. تاکنون {len(context.user_data['doc_files'])} فایل ارسال کرده‌اید.\n"
+            "می‌توانید فایل‌های بیشتری بفرستید یا دکمه 'اتمام' را بزنید."
+        )
     else:
-        await update.message.reply_text("لطفا عکس یا فایل ارسال کنید.")
-    
-    return ADD_DOC_FILES # Stay in this state to receive more files
-
-
+        await update.message.reply_text("لطفاً یک عکس یا فایل معتبر ارسال کنید.")
+        
+    return ADD_DOC_FILES
+#______÷÷÷÷÷÷÷÷÷÷÷÷_______________÷÷÷÷÷÷÷____
 async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_doc = context.user_data.get('new_doc', {})
     message = (
