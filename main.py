@@ -720,11 +720,19 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO documents (person_id, doc_name, doc_text, file_ids) VALUES (%s, %s, %s, %s);",
-                (person_id, new_doc.get('name'), new_doc.get('text'), new_doc.get('files', []))
+                """ INSERT INTO documents (person_id, doc_name, doc_text, file_ids)
+                VALUES (%s, %s, %s, %s);""",
+                # (person_id, new_doc.get('name'), new_doc.get('text'), new_doc.get('files', []))
+                (
+                    context.user_data['selected_person_id'],
+                    context.user_data.get('doc_name'),
+                    context.user_data.get('doc_text'),
+                    context.user_data.get('doc_files', []) # Pass the list directly
+                
             )
             conn.commit()
-            await update.message.reply_text("✅ مدرک جدید با موفقیت ثبت شد.")
+            await update.message.reply_text("✅ مدرک جدید با موفقیت ثبت شد.", reply_markup=ReplyKeyboardRemove())
+            
     except psycopg2.Error as e:
         logger.error(f"Error saving document: {e}")
         await update.message.reply_text("❌ خطایی در ذخیره مدرک رخ داد.")
@@ -734,7 +742,7 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Cleanup
     context.user_data.pop('new_doc', None)
     context.user_data.pop('selected_person_id', None)
-    return await edit_menu(update, context)
+    return await main_menu(update, context)
     
 async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
