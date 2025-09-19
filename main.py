@@ -728,7 +728,7 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                     context.user_data.get('doc_name'),
                     context.user_data.get('doc_text'),
                     context.user_data.get('doc_files', []) # Pass the list directly
-                
+                )
             )
             conn.commit()
             await update.message.reply_text("✅ مدرک جدید با موفقیت ثبت شد.", reply_markup=ReplyKeyboardRemove())
