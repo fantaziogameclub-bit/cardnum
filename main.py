@@ -236,34 +236,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     from telegram.helpers import escape_markdown
 
 # --- پیام برای کاربر غیرمجاز + اطلاع به ادمین ---
-if auth_status is False:
-    # Escape مقادیر متغیرها
-    user_id_md = escape_markdown(str(user.id), version=2)
-    first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
+    if auth_status is False:
+        # Escape مقادیر متغیرها
+        user_id_md = escape_markdown(str(user.id), version=2)
+        first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
 
-    # پیام به خود کاربر
-    await update.message.reply_text(
-        f"🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
-        f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user_id_md}`",
-        parse_mode=ParseMode.MARKDOWN_V2
-    )
-
-    # پیام به ادمین
-    try:
-        await context.bot.send_message(
-            chat_id=ADMIN_TELEGRAM_ID,
-            text=(
-                f"📥 درخواست دسترسی جدید!\n\n"
-                f"👤 کاربر: {first_name_md}\n"
-                f"🆔 شناسه: `{user_id_md}`\n\n"
-                f"برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید."
-            ),
+        # پیام به خود کاربر
+        await update.message.reply_text(
+            f"🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
+            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user_id_md}`",
             parse_mode=ParseMode.MARKDOWN_V2
         )
-    except Exception as e:
-        logger.error(f"Failed to send new user notification to admin: {e}")
 
-    return ConversationHandler.END
+        # پیام به ادمین
+        try:
+            await context.bot.send_message(
+                chat_id=ADMIN_TELEGRAM_ID,
+                text=(
+                    f"📥 درخواست دسترسی جدید!\n\n"
+                    f"👤 کاربر: {first_name_md}\n"
+                    f"🆔 شناسه: `{user_id_md}`\n\n"
+                    f"برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید."
+                ),
+                parse_mode=ParseMode.MARKDOWN_V2
+            )
+        except Exception as e:
+            logger.error(f"Failed to send new user notification to admin: {e}")
+
+        return ConversationHandler.END
 
 
 # ادامه کار وقتی کاربر مجاز است...
