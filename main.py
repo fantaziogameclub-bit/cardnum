@@ -1122,6 +1122,10 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_item_type)
             ],
+            ADD_ACCOUNT_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_account_name),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_item_type),
+            ],
             ADD_ACCOUNT_BANK: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
@@ -1230,7 +1234,8 @@ def main() -> None:
             ],
             ADD_DOC_FILES: [
                 MessageHandler(filters.PHOTO | filters.Document.ALL, add_get_doc_files),
-                MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
+                # MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
+                MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_save_document),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
