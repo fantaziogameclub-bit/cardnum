@@ -906,7 +906,7 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return await main_menu(update, context)
     
 async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['new_account']['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
+    context.user_data.setdefault('new_account', {})['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
     # context.user_data['new_account'] = {}
     # await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=update.message.reply_keyboard)
     await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
@@ -940,7 +940,7 @@ async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_account = context.user_data.get('new_account', {})
-    person_id = context.user_data.get('selected_person_id')
+    person_id = context.user_data.get('selected_person_id') or context.user_data.get('new_account_person_id')
     
     if update.message.photo:
         new_account['card_photo_id'] = update.message.photo[-1].file_id
@@ -1453,8 +1453,8 @@ def main() -> None:
             ],
 
             ADD_DOC_SAVE: [
-                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), add_save_document),
-                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), add_prompt_doc_name),
+                MessageHandler(filters.Regex(f"^{YES_CONTINUE}$"), add_save_document),
+                MessageHandler(filters.Regex(f"^{NO_EDIT}$"), add_prompt_doc_name),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
 
