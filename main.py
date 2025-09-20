@@ -240,7 +240,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if auth_status is False:
         # Escape مقادیر متغیرها
         user_id_safe = escape_markdown(str(user.id), version=2)
-        first_name_safe = escape_markdown(user.first_name or "بدون‌نام", version=2)
+        first_name_safe = escape_markdown(user.first_name or "", version=2)
+        username_safe = escape_markdown(f"@{user.username}", version=2) if user.username else escape_markdown("ندارد", version=2)
+
         # user_id_md = escape_markdown(str(user.id), version=2)
         # first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
 
@@ -253,14 +255,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         # پیام به ادمین
         try:
+            admin_msg = (
+                f"📥 درخواست دسترسی جدید!\n\n"
+                f"👤 کاربر: {user.first_name or ''}\n"
+                f"🔖 نام کاربری: @{user.username}" if user.username else "ندارد" + "\n"
+                f"🆔 شناسه: {user.id}\n\n"
+                "برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید."
+            )
+            admin_msg_safe = escape_markdown(admin_msg, version=2)
             await context.bot.send_message(
                 chat_id=ADMIN_TELEGRAM_ID,
-                text=(
-                    f"📥 درخواست دسترسی جدید!\n"
-                    f"👤 کاربر: {first_name_safe}\n"
-                    f"🆔 شناسه: `{user_id_safe}`\n"
-                    f"برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید."
-                ),
+                text=admin_msg_safe,
                 parse_mode=ParseMode.MARKDOWN_V2
             )
         except Exception as e:
@@ -287,11 +292,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
       finally:
         conn.close()
 
-    first_name_safe = escape_markdown(user.first_name or "کاربر", version=2)
+    # first_name_safe = escape_markdown(user.first_name or "کاربر", version=2)
     keyboard = [["مشاهده اطلاعات 📄"], ["ویرایش ✏️", "ادمین 🛠️"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-    await update.message.reply_text(f"سلام `{first_name_safe}`! به دفترچه بانکی خوش آمدید.", reply_markup=reply_markup ,parse_mode=ParseMode.MARKDOWN_V2)
+    safe_text = escape_markdown(f"سلام {user.first_name or 'کاربر'}! به دفترچه بانکی خوش آمدید.", version=2)
+    await update.message.reply_text(
+        safe_text,
+        reply_markup=reply_markup,
+        parse_mode=ParseMode.MARKDOWN_V2
+    )
+
+    # await update.message.reply_text(f"سلام `{first_name_safe}`! به دفترچه بانکی خوش آمدید.", reply_markup=reply_markup ,parse_mode=ParseMode.MARKDOWN_V2)
     return MAIN_MENU
 
 async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -333,12 +345,17 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         users_lines = []
         for tid, fn in users:
-            tid_safe = escape_markdown(str(tid), version=2)
-            fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
-            users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
-
+            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 {tid}")
+        
         message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+        message_safe = escape_markdown(message, version=2)
+        await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
+
+            # tid_safe = escape_markdown(str(tid), version=2)
+            # fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
+            # users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
+        # message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+        # await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
 
     except Exception as e:
         logger.error(f"Error in admin_view_users: {e}", exc_info=True)
@@ -420,11 +437,14 @@ async def admin_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             conn.commit()
 
             if cur.rowcount > 0:
-                user_id_safe = escape_markdown(str(user_id_to_remove), version=2)
-                await update.message.reply_text(
-                    f"✅ کاربر `{user_id_safe}` حذف شد.",
-                    parse_mode=ParseMode.MARKDOWN_V2
-                )
+                msg = f"✅ کاربر {user_id_to_remove} حذف شد."
+                msg_safe = escape_markdown(msg, version=2)
+                await update.message.reply_text(msg_safe, parse_mode=ParseMode.MARKDOWN_V2)
+                # user_id_safe = escape_markdown(str(user_id_to_remove), version=2)
+                # await update.message.reply_text(
+                    # f"✅ کاربر `{user_id_safe}` حذف شد.",
+                    # parse_mode=ParseMode.MARKDOWN_V2
+                # )
 
                 logger.info(f"User {user_id_to_remove} removed by admin {update.effective_user.id}")
 
@@ -489,16 +509,25 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
         escaped_first_name = escape_markdown(user_info['first_name'], version=2)
         escaped_username = escape_markdown(user_info['username'], version=2)
 
-        message = (
+        message_raw = (
             f"اطلاعات کاربر:\n"
-            f"👤 نام: {escaped_first_name}\n"
-            f"🆔 شناسه: `{escaped_id}`\n"
-            f"🔖 نام کاربری: {escaped_username}\n\n"
+            f"👤 نام: {user_info['first_name']}\n"
+            f"🆔 شناسه: {user_info['id']}\n"
+            f"🔖 نام کاربری: {user_info['username']}\n\n"
             "آیا این کاربر را اضافه می‌کنید؟"
         )
+        message_safe = escape_markdown(message_raw, version=2)
+
+        # message = (
+        #     f"اطلاعات کاربر:\n"
+        #     f"👤 نام: {escaped_first_name}\n"
+        #     f"🆔 شناسه: `{escaped_id}`\n"
+        #     f"🔖 نام کاربری: {escaped_username}\n\n"
+        #     "آیا این کاربر را اضافه می‌کنید؟"
+        # )
         keyboard = [[YES_BUTTON], [NO_BUTTON]]
         await update.message.reply_text(
-            message,
+            message_safe,
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
             parse_mode=ParseMode.MARKDOWN_V2
         )
