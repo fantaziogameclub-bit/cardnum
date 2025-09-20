@@ -851,18 +851,27 @@ async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYP
 async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_doc = context.user_data.get('new_doc',  {})
     person_id = context.user_data.get('selected_person_id')
-    # person_id = new_doc.get('person_id')
-    doc_nameA = new_doc.get('name')
-    doc_textA = new_doc.get('text')
-    doc_filesA = new_doc.get('files', [])
+
+    if not person_id or not new_doc or not new_doc.get('name'):
+        await update.message.reply_text("خطای داخلی: اطلاعات مدرک یا شخص کامل نیست. لطفاً دوباره از منوی اصلی شروع کنید.")
+        # پاک کردن اطلاعات ناقص برای جلوگیری از خطای مجدد
+        context.user_data.pop('new_doc', None)
+        context.user_data.pop('doc_files', None)
+        context.user_data.pop('selected_person_id', None)
+        return await main_menu(update, context)
     
-    if not new_doc or not person_id:
-        await update.message.reply_text("خطای داخلی، لطفا دوباره تلاش کنید.")
-        return await edit_menu(update, context)
+    # person_id = new_doc.get('person_id')
+    # doc_nameA = new_doc.get('name')
+    # doc_textA = new_doc.get('text')
+    # doc_filesA = new_doc.get('files', [])
+    
+    # if not new_doc or not person_id:
+    #     await update.message.reply_text("خطای داخلی، لطفا دوباره تلاش کنید.")
+    #     return await edit_menu(update, context)
 
     conn = get_db_connection()
     if not conn:
-        await update.message.reply_text("آب قطعه")
+        await update.message.reply_text("اتصال به دیتابیس برقرار نیست. لطفاً بعداً تلاش کنید.")
         return await edit_menu(update, context)
     try:
         with conn.cursor() as cur:
@@ -873,10 +882,9 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 (
                     # context.user_data['selected_person_id'],
                     person_id,
-                    doc_nameA,
-                    doc_textA,
-                    # context.user_data.get('doc_files', []) # Pass the list directly
-                    doc_filesA,
+                    new_doc.get('name'),
+                    new_doc.get('text'),
+                    new_doc.get('files', []) # پاس دادن لیست فایل‌ها
                 )
             )
             conn.commit()
@@ -887,16 +895,19 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text("❌ خطایی در ذخیره مدرک رخ داد.")
         return await edit_menu(update, context)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
     # Cleanup
+    # پاکسازی نهایی در صورت موفقیت
     context.user_data.pop('new_doc', None)
     context.user_data.pop('selected_person_id', None)
+    context.user_data.pop('doc_files', None) # لیست موقت فایل‌ها هم پاک می‌شود
     return await main_menu(update, context)
     
 async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
-    context.user_data['new_account'] = {}
+    # context.user_data['new_account'] = {}
     # await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=update.message.reply_keyboard)
     await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_NUMBER
@@ -929,7 +940,7 @@ async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_account = context.user_data.get('new_account', {})
-    person_id = context.user_data.get('new_account_person_id')
+    person_id = context.user_data.get('selected_person_id')
     
     if update.message.photo:
         new_account['card_photo_id'] = update.message.photo[-1].file_id
@@ -938,6 +949,13 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     else:
         await update.message.reply_text("لطفاً عکس بفرستید یا رد شوید.")
         return ADD_ACCOUNT_PHOTO
+    # بررسی می‌کنیم که اطلاعات حیاتی مثل آیدی شخص و نام حساب وجود داشته باشند
+    if not person_id or not new_account.get('account_name'):
+        # logger.error(f"Missing data for account save. Person ID: {person_id}, New Account: {new_account}")
+        await update.message.reply_text("❌ یک خطای داخلی رخ داد (اطلاعات شخص یا نام حساب یافت نشد). لطفاً دوباره تلاش کنید.")
+        # پاک کردن اطلاعات ناقص برای جلوگیری از خطای مجدد
+        context.user_data.pop('new_account', None)
+        return await edit_menu(update, context)
     
     acc_nameA = new_account.get('account_name')
     # bank_name = TEST 
@@ -947,10 +965,11 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     shabaA = new_account.get('shaba_number')
     acc_photo_idA = new_account.get('card_photo_id')
 
-    if not person_id:
-        return await start(update, context)
+    # if not person_id:
+        # return await start(update, context)
     conn = get_db_connection()
     if not conn:
+        await update.message.reply_text("اتصال به دیتابیس برقرار نیست.")
         return await edit_menu(update, context)
     try:
         with conn.cursor() as cur:
@@ -969,11 +988,14 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
             conn.commit()
             await update.message.reply_text("✅ حساب جدید با موفقیت ثبت شد.")
     except psycopg2.Error as e:
+        logger.error(f"Error saving account: {e}")
         await update.message.reply_text("❌ خطایی در ذخیره حساب رخ داد.")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
     context.user_data.pop('new_account', None)
-    context.user_data.pop('new_account_person_id', None)
+    context.user_data.pop('selected_person_id', None)
     return await edit_menu(update, context)
 
 # --- Delete Flow (Unchanged) ---
