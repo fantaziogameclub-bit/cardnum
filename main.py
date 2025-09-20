@@ -803,7 +803,7 @@ async def add_get_doc_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ADD_DOC_FILES # State for confirmation before file upload
 
 async def add_prompt_doc_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data['new_doc']['files'] = []
+    context.user_data['new_doc']['doc_files'] = []
     keyboard = [[FINISH_SENDING_BUTTON], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("عکس‌ها و فایل‌های مدرک را ارسال کنید. پس از اتمام، دکمه 'اتمام ارسال' را بزنید.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_DOC_FILES
@@ -837,7 +837,7 @@ async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYP
         f"آیا این مدرک ثبت شود؟\n\n"
         f"📄 نام: {new_doc.get('name', 'N/A')}\n"
         f"📝 متن: {new_doc.get('text', 'ندارد')}\n"
-        f"🖼️ تعداد فایل: {len(new_doc.get('files', []))}"
+        f"🖼️ تعداد فایل: {len(new_doc.get('doc_files', []))}"
     )
     keyboard = [["بله، ثبت کن ✅", "نه، از اول ❌"], [HOME_BUTTON]]
     await update.message.reply_text(message, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
@@ -851,7 +851,9 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return await edit_menu(update, context)
 
     conn = get_db_connection()
-    if not conn: return await edit_menu(update, context)
+    if not conn:
+        await update.message.reply_text("آب قطعه")
+        return await edit_menu(update, context)
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -915,21 +917,26 @@ async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TY
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_account = context.user_data.get('new_account', {})
     person_id = context.user_data.get('new_account_person_id')
-    if update.message.photo: new_account['card_photo_id'] = update.message.photo[-1].file_id
-    elif update.message.text == SKIP_BUTTON: new_account['card_photo_id'] = None
+    if update.message.photo:
+        new_account['card_photo_id'] = update.message.photo[-1].file_id
+    elif update.message.text == SKIP_BUTTON:
+        new_account['card_photo_id'] = None
     else:
         await update.message.reply_text("لطفاً عکس بفرستید یا رد شوید.")
         return ADD_ACCOUNT_PHOTO
-    if not person_id: return await start(update, context)
+    if not person_id:
+        return await start(update, context)
     conn = get_db_connection()
-    if not conn: return await edit_menu(update, context)
+    if not conn:
+        return await edit_menu(update, context)
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO accounts (person_id, account_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s);",
+                "INSERT INTO accounts (person_id, account_name, bank_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s, %s);",
                 (
                     person_id, 
                     new_account.get('account_name'), 
+                    new_account.get('bank_name'),
                     new_account.get('account_number'), 
                     new_account.get('card_number'), 
                     new_account.get('shaba_number'), 
@@ -938,8 +945,10 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
             )
             conn.commit()
             await update.message.reply_text("✅ حساب جدید با موفقیت ثبت شد.")
-    except psycopg2.Error as e: await update.message.reply_text("❌ خطایی در ذخیره حساب رخ داد.")
-    finally: conn.close()
+    except psycopg2.Error as e:
+        await update.message.reply_text("❌ خطایی در ذخیره حساب رخ داد.")
+    finally:
+        conn.close()
     context.user_data.pop('new_account', None)
     context.user_data.pop('new_account_person_id', None)
     return await edit_menu(update, context)
