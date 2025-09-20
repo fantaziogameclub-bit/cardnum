@@ -849,7 +849,11 @@ async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYP
     return ADD_DOC_SAVE
 
 async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_doc = context.user_data.get('new_doc')
+    new_doc = context.user_data.get('new_doc',  {})
+    # person_id = new_doc.get('person_id')
+    # doc_name = new_doc.get('name')
+    # doc_text = new_doc.get('text')
+    doc_files = new_doc.get('files', [])
     person_id = context.user_data.get('selected_person_id')
     if not new_doc or not person_id:
         await update.message.reply_text("خطای داخلی، لطفا دوباره تلاش کنید.")
@@ -866,10 +870,12 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 VALUES (%s, %s, %s, %s);""",
                 # (person_id, new_doc.get('name'), new_doc.get('text'), new_doc.get('files', []))
                 (
-                    context.user_data['selected_person_id'],
+                    # context.user_data['selected_person_id'],
+                    person_id,
                     context.user_data.get('doc_name'),
                     context.user_data.get('doc_text'),
-                    context.user_data.get('doc_files', []) # Pass the list directly
+                    # context.user_data.get('doc_files', []) # Pass the list directly
+                    doc_files,
                 )
             )
             conn.commit()
@@ -922,6 +928,13 @@ async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TY
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_account = context.user_data.get('new_account', {})
     person_id = context.user_data.get('new_account_person_id')
+    acc_nameA = new_account.get('account_name')
+    # bank_name = TEST 
+    bank_nameA = new_account.get('bank_name'),
+    acc_numA = new_account.get('account_number'), 
+    card_numA = new_account.get('card_number'), 
+    shabaA = new_account.get('shaba_number'), 
+    acc_photo_idA = new_account.get('card_photo_id')
     if update.message.photo:
         new_account['card_photo_id'] = update.message.photo[-1].file_id
     elif update.message.text == SKIP_BUTTON:
@@ -940,12 +953,12 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
                 "INSERT INTO accounts (person_id, account_name, bank_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s, %s);",
                 (
                     person_id, 
-                    new_account.get('account_name'), 
-                    new_account.get('bank_name'),
-                    new_account.get('account_number'), 
-                    new_account.get('card_number'), 
-                    new_account.get('shaba_number'), 
-                    new_account.get('card_photo_id')
+                    acc_nameA, 
+                    bank_nameA,
+                    acc_numA, 
+                    card_numA, 
+                    shabaA, 
+                    acc_photo_idA,
                  )
             )
             conn.commit()
