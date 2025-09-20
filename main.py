@@ -850,11 +850,12 @@ async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_doc = context.user_data.get('new_doc',  {})
-    # person_id = new_doc.get('person_id')
-    # doc_name = new_doc.get('name')
-    # doc_text = new_doc.get('text')
-    doc_files = new_doc.get('files', [])
     person_id = context.user_data.get('selected_person_id')
+    # person_id = new_doc.get('person_id')
+    doc_nameA = new_doc.get('name')
+    doc_textA = new_doc.get('text')
+    doc_filesA = new_doc.get('files', [])
+    
     if not new_doc or not person_id:
         await update.message.reply_text("خطای داخلی، لطفا دوباره تلاش کنید.")
         return await edit_menu(update, context)
@@ -872,18 +873,19 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
                 (
                     # context.user_data['selected_person_id'],
                     person_id,
-                    context.user_data.get('doc_name'),
-                    context.user_data.get('doc_text'),
+                    doc_nameA,
+                    doc_textA,
                     # context.user_data.get('doc_files', []) # Pass the list directly
-                    doc_files,
+                    doc_filesA,
                 )
             )
             conn.commit()
-            await update.message.reply_text("✅ مدرک جدید با موفقیت ثبت شد.", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("✅ مدرک جدید با موفقیت ثبت شد.", reply_markup=ReplyKeyboardRemove())
             
     except psycopg2.Error as e:
         logger.error(f"Error saving document: {e}")
         await update.message.reply_text("❌ خطایی در ذخیره مدرک رخ داد.")
+        return await edit_menu(update, context)
     finally:
         conn.close()
 
@@ -928,13 +930,7 @@ async def add_account_get_shaba(update: Update, context: ContextTypes.DEFAULT_TY
 async def add_account_get_photo_and_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     new_account = context.user_data.get('new_account', {})
     person_id = context.user_data.get('new_account_person_id')
-    acc_nameA = new_account.get('account_name')
-    # bank_name = TEST 
-    bank_nameA = new_account.get('bank_name'),
-    acc_numA = new_account.get('account_number'), 
-    card_numA = new_account.get('card_number'), 
-    shabaA = new_account.get('shaba_number'), 
-    acc_photo_idA = new_account.get('card_photo_id')
+    
     if update.message.photo:
         new_account['card_photo_id'] = update.message.photo[-1].file_id
     elif update.message.text == SKIP_BUTTON:
@@ -942,6 +938,15 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     else:
         await update.message.reply_text("لطفاً عکس بفرستید یا رد شوید.")
         return ADD_ACCOUNT_PHOTO
+    
+    acc_nameA = new_account.get('account_name')
+    # bank_name = TEST 
+    bank_nameA = new_account.get('bank_name')
+    acc_numA = new_account.get('account_number')
+    card_numA = new_account.get('card_number')
+    shabaA = new_account.get('shaba_number')
+    acc_photo_idA = new_account.get('card_photo_id')
+
     if not person_id:
         return await start(update, context)
     conn = get_db_connection()
@@ -952,13 +957,13 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
             cur.execute(
                 "INSERT INTO accounts (person_id, account_name, bank_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s, %s);",
                 (
-                    person_id, 
-                    acc_nameA, 
+                    person_id,
+                    acc_nameA,
                     bank_nameA,
-                    acc_numA, 
-                    card_numA, 
-                    shabaA, 
-                    acc_photo_idA,
+                    acc_numA,
+                    card_numA,
+                    shabaA,
+                    acc_photo_idA
                  )
             )
             conn.commit()
