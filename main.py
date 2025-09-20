@@ -543,12 +543,25 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
             
             bank, acc_num, card_num, shaba, photo_id = account
             person_name = context.user_data.get('selected_person_name', 'N/A')
-            message = f"📄 *اطلاعات حساب*\n\n👤 *صاحب:* {person_name}\n🏦 *بانک:* {bank or 'N/A'}\n"
-            if acc_num: message += f"🔢 *حساب:*\n`{acc_num}`\n"
-            if card_num: message += f"💳 *کارت:*\n`{card_num}`\n"
-            if shaba: message += f"🌐 *شبا:*\n`{shaba}`\n"
-            
-            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2, reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
+            person_name_safe = escape_markdown(person_name, version=2)
+            bank_safe = escape_markdown(bank or 'N/A', version=2)
+            acc_num_safe = escape_markdown(acc_num, version=2) if acc_num else None
+            card_num_safe = escape_markdown(card_num, version=2) if card_num else None
+            shaba_safe = escape_markdown(shaba, version=2) if shaba else None
+
+            message = f"👤 اطلاعات حساب ({person_name_safe})\n🏦 {bank_safe}\n"
+            if acc_num_safe:
+                message += f"🔢 {acc_num_safe}\n"
+            if card_num_safe:
+                message += f"💳 {card_num_safe}\n"
+            if shaba_safe:
+                message += f"🌐 {shaba_safe}\n"   
+
+            await update.message.reply_text(
+                message, 
+                parse_mode=ParseMode.MARKDOWN_V2, 
+                reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True)
+            )
             if photo_id:
                 try: await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_id, caption="🖼️ تصویر کارت")
                 except: await update.message.reply_text("⚠️ تصویر کارت قابل بارگذاری نبود.")
