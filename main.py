@@ -663,7 +663,7 @@ async def add_set_existing_person_and_prompt_item_type(update: Update, context: 
     if not person_id: return ADD_CHOOSE_EXISTING_PERSON
     context.user_data['selected_person_id'] = person_id
     context.user_data['new_account_person_id'] = person_id
-    # context.user_data['new_account'] = {}
+    context.user_data['new_account'] = {}
     keyboard = [["حساب بانکی 💳", "مدرک 📄"], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("چه نوع اطلاعاتی ثبت می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_CHOOSE_ITEM_TYPE
@@ -767,6 +767,7 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     
 async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['new_account']['bank_name'] = None if update.message.text == SKIP_BUTTON else update.message.text
+    context.user_data['new_account'] = {}
     # await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=update.message.reply_keyboard)
     await update.message.reply_text("۲/۵ - شماره حساب:", reply_markup=ReplyKeyboardMarkup([[SKIP_BUTTON], [BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
     return ADD_ACCOUNT_NUMBER
