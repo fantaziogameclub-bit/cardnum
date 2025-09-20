@@ -928,8 +928,15 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO accounts (person_id, bank_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s);",
-                (person_id, new_account.get('bank_name'), new_account.get('account_number'), new_account.get('card_number'), new_account.get('shaba_number'), new_account.get('card_photo_id'))
+                "INSERT INTO accounts (person_id, account_name, account_number, card_number, shaba_number, card_photo_id) VALUES (%s, %s, %s, %s, %s, %s);",
+                (
+                    person_id, 
+                    new_account.get('account_name'), 
+                    new_account.get('account_number'), 
+                    new_account.get('card_number'), 
+                    new_account.get('shaba_number'), 
+                    new_account.get('card_photo_id')
+                 )
             )
             conn.commit()
             await update.message.reply_text("✅ حساب جدید با موفقیت ثبت شد.")
@@ -1230,11 +1237,12 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADMIN_ADD_USER_CONFIRM: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm),
+                
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), admin_add_user_execute),
-                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), admin_add_user_confirm)
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), admin_menu),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm)
             ],
             ADMIN_REMOVE_USER: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user),
