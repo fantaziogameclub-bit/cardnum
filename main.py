@@ -525,7 +525,7 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
         #     f"🔖 نام کاربری: {escaped_username}\n\n"
         #     "آیا این کاربر را اضافه می‌کنید؟"
         # )
-        keyboard = [[YES_BUTTON], [NO_BUTTON]]
+        keyboard = [[YES_BUTTON , NO_BUTTON], [BACK_BUTTON , HOME_BUTTON ]]
         await update.message.reply_text(
             message_safe,
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
@@ -1230,21 +1230,23 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADMIN_ADD_USER_CONFIRM: [
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu)
             ],
             ADMIN_REMOVE_USER: [
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu)
+                
             ],
             VIEW_CHOOSE_PERSON: [
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
             ],
             VIEW_CHOOSE_ACCOUNT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_person),
-                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details)
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
+                
             ],
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
@@ -1259,9 +1261,9 @@ def main() -> None:
                 MessageHandler(filters.Regex("^شخص موجود 👥$"), add_choose_existing_person)
             ],
             ADD_NEW_PERSON_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_item_type),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
-                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_save_new_person_and_prompt_item_type)
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
             ],
             ADD_CHOOSE_EXISTING_PERSON: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
@@ -1269,18 +1271,18 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, add_set_existing_person_and_prompt_item_type)
             ],
             ADD_ACCOUNT_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_account_name),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_prompt_account_name),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_item_type),
             ],
             ADD_ACCOUNT_BANK: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_bank),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
-                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_bank)
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
             ],
             ADD_ACCOUNT_NUMBER: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_number),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
-                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_account_get_number)
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
             ],
             ADD_ACCOUNT_CARD: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
@@ -1371,9 +1373,9 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
             ],
             ADD_DOC_TEXT: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{YES_CONTINUE}$"), add_prompt_doc_files),  # هدایت به مرحله ارسال فایل
                 MessageHandler(filters.Regex(f"^{NO_EDIT}$"), add_get_doc_text),  # برگشت به مرحله وارد کردن متن
-                MessageHandler(filters.TEXT & ~filters.COMMAND, add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{SKIP_BUTTON}$"), add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_name),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
