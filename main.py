@@ -229,22 +229,25 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
     auth_status = is_authorized(user.id)
+
     if auth_status is None:
         await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده. لطفاً بعداً دوباره تلاش کنید.")
         return ConversationHandler.END
-
-    from telegram.helpers import escape_markdown
+    
+    # from telegram.helpers import escape_markdown
 
 # --- پیام برای کاربر غیرمجاز + اطلاع به ادمین ---
     if auth_status is False:
         # Escape مقادیر متغیرها
-        user_id_md = escape_markdown(str(user.id), version=2)
-        first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
+        user_id_safe = escape_markdown(str(user.id), version=2)
+        first_name_safe = escape_markdown(user.first_name or "بدون‌نام", version=2)
+        # user_id_md = escape_markdown(str(user.id), version=2)
+        # first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
 
         # پیام به خود کاربر
         await update.message.reply_text(
             f"🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
-            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user_id_md}`",
+            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user_id_safe}`",
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
@@ -253,15 +256,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             await context.bot.send_message(
                 chat_id=ADMIN_TELEGRAM_ID,
                 text=(
-                    f"📥 درخواست دسترسی جدید!\n\n"
-                    f"👤 کاربر: {first_name_md}\n"
-                    f"🆔 شناسه: `{user_id_md}`\n\n"
+                    f"📥 درخواست دسترسی جدید!\n"
+                    f"👤 کاربر: {first_name_safe}\n"
+                    f"🆔 شناسه: `{user_id_safe}`\n"
                     f"برای افزودن این کاربر، به بخش ادمین رفته و شناسه بالا را وارد کنید."
                 ),
                 parse_mode=ParseMode.MARKDOWN_V2
             )
         except Exception as e:
             logger.error(f"Failed to send new user notification to admin: {e}")
+            await update.message.reply_text(
+                "⚠️ خطا در ارسال درخواست به مدیر. لطفاً بعداً دوباره تلاش کنید."
+            )
 
         return ConversationHandler.END
 
@@ -281,9 +287,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
       finally:
         conn.close()
 
+    first_name_safe = escape_markdown(user.first_name or "کاربر", version=2)
     keyboard = [["مشاهده اطلاعات 📄"], ["ویرایش ✏️", "ادمین 🛠️"]]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text(f"سلام {user.first_name}! به دفترچه بانکی خوش آمدید.", reply_markup=reply_markup)
+
+    await update.message.reply_text(f"سلام `{first_name_safe}`! به دفترچه بانکی خوش آمدید.", reply_markup=reply_markup ,parse_mode=ParseMode.MARKDOWN_V2)
     return MAIN_MENU
 
 async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -305,22 +313,40 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ADMIN_MENU
 
 async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    # This can also be paginated if the user list grows large, but for now it's simple.
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
+        return MAIN_MENU
+    
     conn = get_db_connection()
     if not conn:
         await update.message.reply_text("خطا در اتصال به پایگاه داده.")
         return ADMIN_MENU
+    
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT telegram_id, first_name FROM users ORDER BY first_name;")
             users = cur.fetchall()
-            message = "لیست کاربران مجاز:\n\n" + "\n".join([
-    f"👤 {escape_markdown(fn, version=2)}\n🆔 `{escape_markdown(str(tid), version=2)}`"
-    for tid, fn in users
-            ]) if users else "هیچ کاربری ثبت نشده."
-            await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+        
+        if not users:
+            await update.message.reply_text("هیچ کاربری ثبت نشده است.")
+            return ADMIN_MENU
 
-    finally: conn.close()
+        users_lines = []
+        for tid, fn in users:
+            tid_safe = escape_markdown(str(tid), version=2)
+            fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
+            users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
+
+        message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+
+    except Exception as e:
+        logger.error(f"Error in admin_view_users: {e}", exc_info=True)
+        await update.message.reply_text("❌ خطایی در دریافت لیست کاربران رخ داد.")
+
+    finally:
+        conn.close()
+
     return ADMIN_MENU
 
 async def admin_prompt_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -373,61 +399,109 @@ async def admin_prompt_remove_user(update: Update, context: ContextTypes.DEFAULT
     finally: conn.close()
 
 async def admin_remove_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    try: user_id_to_remove = int(update.message.text.split('(')[-1].strip(')'))
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
+        return MAIN_MENU
+    
+    try:
+        user_id_to_remove = int(update.message.text.split('(')[-1].strip(')'))
     except (ValueError, TypeError, IndexError):
         await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
         return ADMIN_REMOVE_USER
+
     conn = get_db_connection()
-    if not conn: return await admin_menu(update, context)
+    if not conn:
+        await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده.")
+        return await admin_menu(update, context)
+
     try:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM users WHERE telegram_id = %s;", (user_id_to_remove,))
             conn.commit()
-            if cur.rowcount > 0:
-                await update.message.reply_text(f"✅ کاربر `{user_id_to_remove}` حذف شد.\\", parse_mode=ParseMode.MARKDOWN_V2)
-                try: await context.bot.send_message(chat_id=user_id_to_remove, text="🚫 دسترسی شما به ربات لغو شد.")
-                except Exception: pass
-            else: await update.message.reply_text("کاربر یافت نشد.")
-    except psycopg2.Error: await update.message.reply_text("❌ خطایی در حذف رخ داد.")
-    finally: conn.close()
-    return await admin_menu(update, context)
 
+            if cur.rowcount > 0:
+                user_id_safe = escape_markdown(str(user_id_to_remove), version=2)
+                await update.message.reply_text(
+                    f"✅ کاربر `{user_id_safe}` حذف شد.",
+                    parse_mode=ParseMode.MARKDOWN_V2
+                )
+
+                logger.info(f"User {user_id_to_remove} removed by admin {update.effective_user.id}")
+
+                try:
+                    await context.bot.send_message(
+                        chat_id=user_id_to_remove,
+                        text="🚫 دسترسی شما به ربات لغو شد."
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to send access removal message to {user_id_to_remove}: {e}")
+            else:
+                await update.message.reply_text("⚠️ کاربر مورد نظر یافت نشد.")
+
+    except Exception as e:
+        logger.error(f"Error in admin_remove_user: {e}", exc_info=True)
+        await update.message.reply_text("❌ خطایی در حذف کاربر رخ داد.")
+    finally:
+        conn.close()
+
+    return await admin_menu(update, context)
 # --- Admin Add User Confirmation Flow ---
 
 async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    if not is_admin(update.effective_user.id):
+        await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
+        return MAIN_MENU
+    
     try:
         user_id_to_add = int(update.message.text)
     except (ValueError, TypeError):
-        await update.message.reply_text("❌ شناسه نامعتبر است. یک عدد وارد کنید.")
+        await update.message.reply_text("❌ شناسه نامعتبر است. لطفاً یک عدد وارد کنید.")
         return ADMIN_ADD_USER_CONFIRM
 
-    # Check if user already exists
+    # بررسی اینکه کاربر از قبل وجود نداشته باشد
     conn = get_db_connection()
-    if conn:
+    if not conn:
+        await update.message.reply_text("⚠️ خطا در اتصال به پایگاه داده.")
+        return ADMIN_MENU
+    try:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM users WHERE telegram_id = %s;", (user_id_to_add,))
+            cur.execute(
+                "SELECT 1 FROM users WHERE telegram_id = %s;",
+                (user_id_to_add,)
+            )
             if cur.fetchone():
                 await update.message.reply_text("⚠️ این کاربر از قبل وجود دارد.")
                 return await admin_menu(update, context)
+    finally:
         conn.close()
 
     try:
         chat = await context.bot.get_chat(user_id_to_add)
+
         user_info = {
-            'id': chat.id,
-            'first_name': chat.first_name,
-            'username': f"@{chat.username}" if chat.username else "ندارد"
+            'id': escape_markdown(str(chat.id), version=2),
+            'first_name': escape_markdown(chat.first_name or "بدون‌نام", version=2),
+            'username': escape_markdown(f"@{chat.username}" if chat.username else "ندارد", version=2)
         }
         context.user_data['user_to_add'] = user_info
+
+        escaped_id = escape_markdown(str(user_info['id']), version=2)
+        escaped_first_name = escape_markdown(user_info['first_name'], version=2)
+        escaped_username = escape_markdown(user_info['username'], version=2)
+
         message = (
             f"اطلاعات کاربر:\n"
-            f"👤 نام: {user_info['first_name']}\n"
-            f"🆔 شناسه: `{user_info['id']}`\n"
-            f"🔖 نام کاربری: {user_info['username']}\n\n"
+            f"👤 نام: {escaped_first_name}\n"
+            f"🆔 شناسه: `{escaped_id}`\n"
+            f"🔖 نام کاربری: {escaped_username}\n\n"
             "آیا این کاربر را اضافه می‌کنید؟"
         )
         keyboard = [[YES_BUTTON], [NO_BUTTON]]
-        await update.message.reply_text(message, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
+        await update.message.reply_text(
+            message,
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
+            parse_mode=ParseMode.MARKDOWN_V2
+        )
         return ADMIN_ADD_USER_CONFIRM
 
     except BadRequest:
