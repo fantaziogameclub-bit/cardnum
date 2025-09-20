@@ -239,9 +239,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # --- پیام برای کاربر غیرمجاز + اطلاع به ادمین ---
     if auth_status is False:
         # Escape مقادیر متغیرها
-        user_id_safe = escape_markdown(str(user.id), version=2)
-        first_name_safe = escape_markdown(user.first_name or "", version=2)
-        username_safe = escape_markdown(f"@{user.username}", version=2) if user.username else escape_markdown("ندارد", version=2)
+        # user_id_safe = escape_markdown(str(user.id), version=2)
+        # first_name_safe = escape_markdown(user.first_name or "", version=2)
+        # username_safe = escape_markdown(f"@{user.username}", version=2) if user.username else escape_markdown("ندارد", version=2)
 
         # user_id_md = escape_markdown(str(user.id), version=2)
         # first_name_md = escape_markdown(user.first_name or "بدون‌نام", version=2)
@@ -249,7 +249,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         # پیام به خود کاربر
         await update.message.reply_text(
             f"🚫 شما اجازه دسترسی به این ربات را ندارید.\n"
-            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n`{user_id_safe}`",
+            f"برای درخواست دسترسی، این شناسه را برای ادمین ارسال کنید:\n{user.id}",
             parse_mode=ParseMode.MARKDOWN_V2
         )
 
@@ -505,9 +505,9 @@ async def admin_add_user_confirm(update: Update, context: ContextTypes.DEFAULT_T
         }
         context.user_data['user_to_add'] = user_info
 
-        escaped_id = escape_markdown(str(user_info['id']), version=2)
-        escaped_first_name = escape_markdown(user_info['first_name'], version=2)
-        escaped_username = escape_markdown(user_info['username'], version=2)
+        # escaped_id = escape_markdown(str(user_info['id']), version=2)
+        # escaped_first_name = escape_markdown(user_info['first_name'], version=2)
+        # escaped_username = escape_markdown(user_info['username'], version=2)
 
         message_raw = (
             f"اطلاعات کاربر:\n"
@@ -1231,12 +1231,15 @@ def main() -> None:
             ],
             ADMIN_ADD_USER_CONFIRM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, admin_add_user_confirm),
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu)
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), admin_add_user_execute),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), admin_add_user_confirm)
             ],
             ADMIN_REMOVE_USER: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, admin_remove_user),
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu)
-                
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
             ],
             VIEW_CHOOSE_PERSON: [
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
@@ -1246,7 +1249,6 @@ def main() -> None:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_person),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
-                
             ],
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
@@ -1382,10 +1384,12 @@ def main() -> None:
             ],
             ADD_DOC_FILES: [
                 MessageHandler(filters.PHOTO | filters.Document.ALL, add_get_doc_files),
-                # MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
-                MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_save_document),
+                # MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),add_save_document
+                MessageHandler(filters.Regex(f"^{FINISH_SENDING_BUTTON}$"), add_confirm_doc_save),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(filters.Regex(f"^{YES_CONTINUE}$"), add_prompt_doc_files),
+                MessageHandler(filters.Regex(f"^{NO_EDIT}$"), add_get_doc_text)
             ],
 
             ADD_DOC_SAVE: [
