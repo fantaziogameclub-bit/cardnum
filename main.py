@@ -685,7 +685,7 @@ async def add_prompt_account_name(update: Update, context: ContextTypes.DEFAULT_
         "یک نام برای این حساب انتخاب کنید (مثال: حساب حقوق، حساب شخصی).",
         reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True)
     )
-    return ADD_ACCOUNT_NAME
+    return ADD_ACCOUNT_BANK
 
 async def add_get_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Stores the account name and proceeds to ask for the bank name."""
@@ -774,7 +774,8 @@ async def add_choose_existing_person(update: Update, context: ContextTypes.DEFAU
 async def add_set_existing_person_and_prompt_item_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
-    if not person_id: return ADD_CHOOSE_EXISTING_PERSON
+    if not person_id:
+        return ADD_CHOOSE_EXISTING_PERSON
     context.user_data['selected_person_id'] = person_id
     context.user_data['new_account_person_id'] = person_id
     context.user_data['new_account'] = {}
@@ -813,8 +814,7 @@ async def add_get_doc_files(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     """Receives photos or documents and stores their file_ids."""
     if 'doc_files' not in context.user_data:
         context.user_data['doc_files'] = []
-
-    file_id = None
+        file_id = None
     if update.message.photo:
         file_id = update.message.photo[-1].file_id # Get highest quality
     elif update.message.document:
@@ -832,14 +832,19 @@ async def add_get_doc_files(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     return ADD_DOC_FILES
 #______÷÷÷÷÷÷÷÷÷÷÷÷_______________÷÷÷÷÷÷÷____
 async def add_confirm_doc_save(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    new_doc = context.user_data.get('new_doc', {})
+    new_doc = context.user_data.setdefault('new_doc', {})
+    # new_doc = context.user_data.get('new_doc', {})
+    # انتقال فایل‌ها از doc_files به داخل new_doc
+    if 'doc_files' in context.user_data:
+        new_doc['files'] = context.user_data['doc_files']
     message = (
         f"آیا این مدرک ثبت شود؟\n\n"
         f"📄 نام: {new_doc.get('name', 'N/A')}\n"
         f"📝 متن: {new_doc.get('text', 'ندارد')}\n"
-        f"🖼️ تعداد فایل: {len(new_doc.get('doc_files', []))}"
+        f"📎 تعداد فایل: {len(new_doc.get('files', []))}"
     )
-    keyboard = [["بله، ثبت کن ✅", "نه، از اول ❌"], [HOME_BUTTON]]
+
+    keyboard = [[YES_CONTINUE, NO_EDIT], [HOME_BUTTON]]
     await update.message.reply_text(message, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_DOC_SAVE
 
@@ -1317,7 +1322,7 @@ def main() -> None:
                 MessageHandler(filters.PHOTO | filters.TEXT, add_account_get_photo_and_save)
             ],
             ADD_CHOOSE_ITEM_TYPE: [
-                MessageHandler(filters.Regex("^حساب بانکی 💳$"), add_account_get_bank),
+                MessageHandler(filters.Regex("^حساب بانکی 💳$"), add_prompt_account_name),
                 MessageHandler(filters.Regex("^مدرک 📄$"), add_prompt_doc_name),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
