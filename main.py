@@ -649,7 +649,7 @@ async def get_documents_for_person_from_db(person_id: int, context: ContextTypes
 async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
     # اگر کاربر دکمه "بازگشت" از صفحه مدارک رو زده باشه، دوباره لیست اشخاص رو نشون میدیم
-    if person_name == BACK_BUTTON:
+    if person_name == BACK_BUTTON or MAIN_MENU:
         return await view_choose_person(update, context)
         
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
@@ -666,6 +666,7 @@ async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data['selected_person_name'] = person_name
 
     # گرفتن لیست حساب‌ها و مدارک
+    await get_accounts_for_person_from_db(person_id, context) 
     # accounts = await get_accounts_for_person_from_db(person_id, context)
     documents = await get_documents_for_person_from_db(person_id, context)
     account_buttons = list(context.user_data.get('accounts_list_dict', {}).keys())
@@ -679,7 +680,8 @@ async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE
     if not buttons:
         await update.message.reply_text(f"هیچ حساب یا مدرکی برای '{person_name}' ثبت نشده.")
         return await view_choose_person(update, context) # برگشت به لیست اشخاص
-
+    
+    
     keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"اطلاعات '{person_name}' \nکدام مورد را می‌خواهید مشاهده کنید؟", reply_markup=keyboard)
     
@@ -1173,12 +1175,17 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     shabaA = new_account.get('shaba_number')
     acc_photo_idA = new_account.get('card_photo_id')
 
-    # if not person_id:
-        # return await start(update, context)
+    if not person_id or not acc_nameA:
+        await update.message.reply_text(
+                "❌ اطلاعات ضروری (شخص یا نام حساب) یافت نشد. لطفاً از ابتدا شروع کنید.",
+                reply_markup=ReplyKeyboardMarkup([MAIN_MENU], resize_keyboard=True)
+        )
+        return ADD_CHOOSE_ITEM_TYPE
+    
     conn = get_db_connection()
     if not conn:
         await update.message.reply_text("اتصال به دیتابیس برقرار نیست.")
-        return await edit_menu(update, context)
+        return ADD_CHOOSE_ITEM_TYPE
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -1187,6 +1194,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
                     person_id,
                     acc_nameA,
                     bank_nameA,
+
                     acc_numA,
                     card_numA,
                     shabaA,
@@ -1194,10 +1202,17 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
                  )
             )
             conn.commit()
-            await update.message.reply_text("✅ حساب جدید با موفقیت ثبت شد.")
+            await update.message.reply_text(
+                "✅ حساب جدید با موفقیت ثبت شد.",
+                reply_markup=ReplyKeyboardMarkup([MAIN_MENU], resize_keyboard=True)
+            )
+            context.user_data.pop('new_account', None)
+            return ADD_CHOOSE_ITEM_TYPE
+        
     except psycopg2.Error as e:
         logger.error(f"Error saving account: {e}")
         await update.message.reply_text("❌ خطایی در ذخیره حساب رخ داد.")
+        return ADD_CHOOSE_ITEM_TYPE
     finally:
         if conn:
             conn.close()
@@ -1513,7 +1528,11 @@ def main() -> None:
                 # MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 # MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
                 MessageHandler(filters.Text([NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_person_paginator),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account),
+                # MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account),
+                MessageHandler(
+                    filters.TEXT & 
+                    ~filters.COMMAND & 
+                    ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_choose_account)
             ],
             VIEW_CHOOSE_ACCOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
