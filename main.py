@@ -12,12 +12,12 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-from telegram.constants import ParseMode
+# from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from typing import Optional
 from telegram.helpers import escape_markdown
 from html import escape
-from telegram import ParseMode
+# from telegram import ParseMode
 
 try:
     from telegram.constants import ParseMode
