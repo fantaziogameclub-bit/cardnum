@@ -1617,9 +1617,13 @@ def main() -> None:
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_choose_account)
             ],
             VIEW_CHOOSE_ACCOUNT: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
+                MessageHandler(
+                    filters.TEXT & 
+                    ~filters.COMMAND & 
+                    ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]) , view_display_account_details),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), view_choose_person),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
+
             ],
             EDIT_MENU: [
                 MessageHandler(filters.Regex("^اضافه کردن ➕$"), add_choose_person_type),
@@ -1801,7 +1805,10 @@ def main() -> None:
             ],
             CHANGE_CHOOSE_DOCUMENT_TO_EDIT: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, change_prompt_document_options),
+                MessageHandler(
+                    filters.TEXT & 
+                    ~filters.COMMAND &
+                    ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), change_prompt_document_options),
              ],
 
 
