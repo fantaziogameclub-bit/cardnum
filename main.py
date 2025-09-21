@@ -16,6 +16,8 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from typing import Optional
 from telegram.helpers import escape_markdown
+from html import escape
+from telegram import ParseMode
 
 # --- Logging Configuration ---
 logging.basicConfig(
@@ -36,7 +38,7 @@ except KeyError as e:
 (
     MAIN_MENU,
     ADMIN_MENU, ADMIN_ADD_USER_CONFIRM, ADMIN_REMOVE_USER,
-    VIEW_CHOOSE_PERSON, VIEW_CHOOSE_ACCOUNT,
+    VIEW_CHOOSE_PERSON, VIEW_CHOOSE_ACCOUNT, VIEW_DISPLAY_ACCOUNT_DETAILS, VIEW_CHOOSE_DOCUMENT , VIEW_DISPLAY_DOCUMENT ,
     EDIT_MENU,
     ADD_CHOOSE_PERSON_TYPE, ADD_NEW_PERSON_NAME, ADD_CHOOSE_EXISTING_PERSON,
     ADD_CHOOSE_ITEM_TYPE,
@@ -46,7 +48,7 @@ except KeyError as e:
     DELETE_CHOOSE_ACCOUNT_FOR_PERSON, DELETE_CHOOSE_ACCOUNT, DELETE_CONFIRM_ACCOUNT,
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
-) = range(35)
+) = range(38)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
@@ -60,6 +62,7 @@ YES_BUTTON = "بله ✅"
 DELETE_BUTTON = "حذف کردن 🗑️"
 YES_CONTINUE = "بله، ادامه✅"
 NO_EDIT = "خیر، ویرایش متن✏️"
+DOCUMENTS_BUTTON = "مدارک 📑"
 
 FIELD_TO_COLUMN_MAP = {
     "نام حساب 🧾": "account_name", # PATCH 1: Added account_name
@@ -592,31 +595,175 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text("برای چه کسی اطلاعات اضافه می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ADD_CHOOSE_PERSON_TYPE
 #
+#---------
+# async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # person_name = update.message.text
+    # person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
+    # if not person_id:
+    #     await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
+    #     return VIEW_CHOOSE_PERSON
+    # context.user_data['selected_person_id'] = person_id
+    # context.user_data['selected_person_name'] = person_name
+    
+    # # accounts = await get_accounts_for_person_from_db(person_id, context)
+    # buttons = list(context.user_data['accounts_list_dict'].keys())
+    # if not buttons:
+    #     await update.message.reply_text(f"هیچ حسابی برای '{person_name}' ثبت نشده.")
+    #     return VIEW_CHOOSE_PERSON
+    #     # # Re-display person list
+    #     # persons = await get_persons_from_db(context)
+    #     # buttons = [p[1] for p in persons]
+    #     # keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[HOME_BUTTON]])
+    #     # await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
+    #     # return VIEW_CHOOSE_PERSON
+    
+    
+    # keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    # await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
+    # return VIEW_CHOOSE_ACCOUNT
+#---------
+
+# یک تابع کمکی برای گرفتن مدارک از دیتابیس (مثل تابع حساب‌ها)
+async def get_documents_for_person_from_db(person_id: int, context: ContextTypes.DEFAULT_TYPE):
+    """Fetches all documents for a person and stores them in context."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        with conn.cursor() as cur:
+            # فقط نام و آیدی مدارک رو برای ساختن دکمه‌ها می‌گیریم
+            cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;", (person_id,))
+            documents = cur.fetchall()
+            # دیکشنری مدارک رو در user_data ذخیره می‌کنیم برای استفاده در مرحله بعد
+            context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
+            return documents
+    finally:
+        conn.close()
+
 async def view_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_name = update.message.text
+    # اگر کاربر دکمه "بازگشت" از صفحه مدارک رو زده باشه، دوباره لیست اشخاص رو نشون میدیم
+    if person_name == BACK_BUTTON:
+        return await view_choose_person(update, context)
+        
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
+
     if not person_id:
-        await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
-        return VIEW_CHOOSE_PERSON
+        # این حالت برای زمانیه که کاربر از صفحه لیست مدارک برگشته و دوباره شخص انتخاب کرده
+        if 'selected_person_id' in context.user_data:
+            person_id = context.user_data['selected_person_id']
+        else:
+            await update.message.reply_text("❌ انتخاب نامعتبر. از دکمه‌ها استفاده کنید.")
+            return VIEW_CHOOSE_PERSON
+
     context.user_data['selected_person_id'] = person_id
     context.user_data['selected_person_name'] = person_name
-    
-    accounts = await get_accounts_for_person_from_db(person_id, context)
-    buttons = list(context.user_data['accounts_list_dict'].keys())
+
+    # گرفتن لیست حساب‌ها و مدارک
+    # accounts = await get_accounts_for_person_from_db(person_id, context)
+    documents = await get_documents_for_person_from_db(person_id, context)
+    account_buttons = list(context.user_data.get('accounts_list_dict', {}).keys())
+    buttons = account_buttons.copy()
+    # buttons = account_buttons
+
+    # اگر مدرکی وجود داشت، دکمه "مدارک" رو اضافه کن
+    if documents:
+        buttons.append(DOCUMENTS_BUTTON)
+
     if not buttons:
-        await update.message.reply_text(f"هیچ حسابی برای '{person_name}' ثبت نشده.")
-        return VIEW_CHOOSE_PERSON
-        # # Re-display person list
-        # persons = await get_persons_from_db(context)
-        # buttons = [p[1] for p in persons]
-        # keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[HOME_BUTTON]])
-        # await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
-        # return VIEW_CHOOSE_PERSON
-    
-    
+        await update.message.reply_text(f"هیچ حساب یا مدرکی برای '{person_name}' ثبت نشده.")
+        return await view_choose_person(update, context) # برگشت به لیست اشخاص
+
     keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
-    await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
-    return VIEW_CHOOSE_ACCOUNT
+    await update.message.reply_text(f"اطلاعات '{person_name}' \nکدام مورد را می‌خواهید مشاهده کنید؟", reply_markup=keyboard)
+    
+    # اینجا state رو به VIEW_DISPLAY_ACCOUNT_DETAILS تغییر می‌دیم تا منتظر انتخاب کاربر بمونه
+    return VIEW_DISPLAY_ACCOUNT_DETAILS
+
+##
+
+async def view_choose_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Displays a paginated list of documents for the selected person."""
+    person_name = context.user_data.get('selected_person_name', 'شخص انتخاب شده')
+    
+    # دیکشنری مدارک از مرحله قبل در user_data موجوده
+    doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
+
+    if not doc_buttons:
+        await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
+        # برمیگردیم به صفحه انتخاب حساب/مدرک
+        return await view_choose_account(update, context)
+
+    keyboard = build_menu_paginated(doc_buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    await update.message.reply_text(f"مدارک '{person_name}'. کدام مدرک؟", reply_markup=keyboard)
+    
+    return VIEW_CHOOSE_DOCUMENT
+
+
+async def view_display_document_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Fetches and displays the details of a selected document."""
+    doc_name = update.message.text
+    doc_id = context.user_data.get('documents_list_dict', {}).get(doc_name)
+
+    if not doc_id:
+        await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
+        return VIEW_CHOOSE_DOCUMENT
+
+    conn = get_db_connection()
+    if not conn:
+        await update.message.reply_text("خطا در اتصال به پایگاه داده.")
+        return MAIN_MENU
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT doc_name, doc_text, file_ids FROM documents WHERE id = %s;", (doc_id,))
+            doc = cur.fetchone()
+            if not doc:
+                await update.message.reply_text("خطا: مدرک یافت نشد.")
+                return await view_choose_document(update, context)
+
+            doc_name, doc_text, file_ids = doc
+            
+            # ساخت پیام اصلی
+            message_raw = f"📄 مدرک: {doc_name}\n\n"
+            if doc_text:
+                message_raw += f"📝 متن:\n{doc_text}\n"
+            
+            message_safe = escape_markdown(message_raw, version=2)
+            await update.message.reply_text(
+                message_safe,
+                parse_mode=ParseMode.MARKDOWN_V2,
+                reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True)
+            )
+
+            # ارسال فایل‌ها در صورت وجود
+            if file_ids:
+                await update.message.reply_text("فایل‌های ضمیمه:")
+                for file_id in file_ids:
+                    try:
+                        # ربات تلگرام خودش نوع فایل رو تشخیص میده، پس با send_document میفرستیم
+                        await context.bot.send_document(chat_id=update.effective_chat.id, document=file_id)
+                    except Exception as e:
+                        logger.error(f"Failed to send file with ID {file_id}: {e}")
+                        await update.message.reply_text(f"⚠️ فایل با شناسه `{file_id}` قابل بارگذاری نبود.")
+
+    finally:
+        conn.close()
+
+    # در همین state می‌مانیم تا کاربر بتواند مدرک دیگری را ببیند یا به عقب برگردد
+    return VIEW_CHOOSE_DOCUMENT
+
+
+#---------
+PERSIAN_TO_ENGLISH_DIGITS = str.maketrans({
+    "۰":"0","۱":"1","۲":"2","۳":"3","۴":"4","۵":"5","۶":"6","۷":"7","۸":"8","۹":"9",
+    "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"
+})
+def persian_to_english_digits(s: str) -> str:
+    if not isinstance(s, str):
+        return s
+    return s.translate(PERSIAN_TO_ENGLISH_DIGITS)
+
+##----
 
 async def view_display_account_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     account_key = update.message.text
@@ -639,31 +786,62 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
             
             bank, acc_num, card_num, shaba, photo_id = account
             person_name = context.user_data.get('selected_person_name', 'N/A')
+            
+            # Escape text parts for HTML safety
+            person_name_safe = escape(str(person_name))
+            bank_safe = escape(str(bank or 'N/A'))
             # person_name_safe = escape_markdown(person_name, version=2)
             # bank_safe = escape_markdown(bank or 'N/A', version=2)
             # acc_num_safe = escape_markdown(acc_num, version=2) if acc_num else None
             # card_num_safe = escape_markdown(card_num, version=2) if card_num else None
             # shaba_safe = escape_markdown(shaba, version=2) if shaba else None
+            # Prepare numbers in monospace; convert Persian digits to English if needed
+            def mono(value):
+                if value is None:
+                    return None
+                s = str(value)
+                s = persian_to_english_digits(s)  # optional; keeps Latin digits for easier copy
+                return f"<code>{escape(s)}</code>"
+            
+            acc_num_mono = mono(acc_num)
+            card_num_mono = mono(card_num)
+            shaba_mono = mono(shaba)
 
-            message_raw  = f"👤 اطلاعات حساب ({person_name})\n🏦 {bank or 'N/A'}\n"
-            if acc_num:
-                message_raw += f"🔢 {acc_num}\n"
-            if card_num:
-                message_raw += f"💳 {card_num}\n"
-            if shaba:
-                message_raw += f"🌐 {shaba}\n"
+            # Build the HTML message
+            msg_lines = []
+            msg_lines.append(f"👤 اطلاعات حساب ({person_name_safe})")
+            msg_lines.append(f"🏦 {bank_safe}")
+            if acc_num_mono:
+                msg_lines.append(f"🔢 {acc_num_mono}")
+            if card_num_mono:
+                msg_lines.append(f"💳 {card_num_mono}")
+            if shaba_mono:
+                msg_lines.append(f"🌐 {shaba_mono}")
 
-            message_safe = escape_markdown(message_raw, version=2)
+            message_html = "\n".join(msg_lines)
+
+            # message_raw  = f"👤 اطلاعات حساب ({person_name})\n🏦 {bank or 'N/A'}\n"
+            # if acc_num:
+            #     message_raw += f"🔢 {acc_num}\n"
+            # if card_num:
+            #     message_raw += f"💳 {card_num}\n"
+            # if shaba:
+            #     message_raw += f"🌐 {shaba}\n"
+
+            # message_safe = escape_markdown(message_raw, version=2)
 
             await update.message.reply_text(
-                message_safe, 
-                parse_mode=ParseMode.MARKDOWN_V2, 
+                # message_safe, 
+                message_html,
+                # parse_mode=ParseMode.MARKDOWN_V2, 
+                parse_mode=ParseMode.HTML,
                 reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True)
             )
             if photo_id:
                 try:
-                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_id, caption="🖼️ تصویر کارت")
-                except:
+                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=photo_id, caption="🖼️ تصویر کارت", parse_mode=ParseMode.HTML)
+                except Exception as e:
+                    logger.exception("Failed to send card photo:")
                     await update.message.reply_text("⚠️ تصویر کارت قابل بارگذاری نبود.")
     finally:
         conn.close()
@@ -1470,6 +1648,18 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), change_prompt_person_name),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+            
+            VIEW_DISPLAY_ACCOUNT_DETAILS: [
+                # اگر کاربر دکمه "مدارک" رو زد، به تابع نمایش لیست مدارک میره
+                MessageHandler(filters.Regex(f'^{DOCUMENTS_BUTTON}$'), view_choose_document),
+                # در غیر این صورت، فرض می‌کنیم یک حساب انتخاب کرده
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
+            ],
+             # <<< State جدید برای نمایش لیست مدارک >>>
+            VIEW_CHOOSE_DOCUMENT: [
+                MessageHandler(filters.Regex(f'^{BACK_BUTTON}$'), view_choose_account), # دکمه بازگشت به صفحه قبلی
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_document_details)
             ],
 
 
