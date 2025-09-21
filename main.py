@@ -19,6 +19,11 @@ from telegram.helpers import escape_markdown
 from html import escape
 from telegram import ParseMode
 
+try:
+    from telegram.constants import ParseMode
+except ImportError:
+    from telegram import ParseMode
+
 # --- Logging Configuration ---
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -38,7 +43,7 @@ except KeyError as e:
 (
     MAIN_MENU,
     ADMIN_MENU, ADMIN_ADD_USER_CONFIRM, ADMIN_REMOVE_USER,
-    VIEW_CHOOSE_PERSON, VIEW_CHOOSE_ACCOUNT, VIEW_DISPLAY_ACCOUNT_DETAILS, VIEW_CHOOSE_DOCUMENT , VIEW_DISPLAY_DOCUMENT ,
+    VIEW_CHOOSE_PERSON, VIEW_CHOOSE_ACCOUNT,VIEW_ACCOUNT_DETAILS, VIEW_DISPLAY_ACCOUNT_DETAILS, VIEW_CHOOSE_DOCUMENT , VIEW_DISPLAY_DOCUMENT ,
     EDIT_MENU,
     ADD_CHOOSE_PERSON_TYPE, ADD_NEW_PERSON_NAME, ADD_CHOOSE_EXISTING_PERSON,
     ADD_CHOOSE_ITEM_TYPE,
@@ -48,7 +53,8 @@ except KeyError as e:
     DELETE_CHOOSE_ACCOUNT_FOR_PERSON, DELETE_CHOOSE_ACCOUNT, DELETE_CONFIRM_ACCOUNT,
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
-) = range(38)
+     
+) = range(39)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
@@ -845,7 +851,31 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
                     await update.message.reply_text("⚠️ تصویر کارت قابل بارگذاری نبود.")
     finally:
         conn.close()
-    return VIEW_CHOOSE_ACCOUNT # Stay in the same state to allow viewing another account
+    return VIEW_ACCOUNT_DETAILS  # Stay in the same state to allow viewing another account
+
+async def view_back_to_accounts(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handles the 'Back' button press after viewing account details."""
+    person_id = context.user_data.get('selected_person_id')
+    person_name = context.user_data.get('selected_person_name', 'شخص')
+
+    if not person_id:
+        # Failsafe: if we lost context, go back to person selection
+        return await view_choose_person(update, context)
+
+    # Re-display the accounts list for the same person
+    accounts = await get_accounts_for_person_from_db(person_id, context)
+    buttons = list(context.user_data.get('accounts_list_dict', {}).keys())
+    
+    if not buttons:
+        await update.message.reply_text(f"هیچ حسابی برای '{person_name}' ثبت نشده.")
+        return await view_choose_person(update, context)
+
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
+    
+    return VIEW_CHOOSE_ACCOUNT
+
+
 #_____________________----$$$$$$$$$$$$$$------_______
 # --- ADD FLOW ---
 async def add_choose_item_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1480,8 +1510,10 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
             ],
             VIEW_CHOOSE_PERSON: [
-                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
+                # MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                # MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account)
+                MessageHandler(filters.Text([NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_person_paginator),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, view_choose_account),
             ],
             VIEW_CHOOSE_ACCOUNT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_account_details),
@@ -1660,6 +1692,9 @@ def main() -> None:
             VIEW_CHOOSE_DOCUMENT: [
                 MessageHandler(filters.Regex(f'^{BACK_BUTTON}$'), view_choose_account), # دکمه بازگشت به صفحه قبلی
                 MessageHandler(filters.TEXT & ~filters.COMMAND, view_display_document_details)
+            ],
+            VIEW_ACCOUNT_DETAILS: [
+                MessageHandler(filters.Text([BACK_BUTTON]), view_back_to_accounts),
             ],
 
 
