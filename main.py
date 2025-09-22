@@ -343,7 +343,9 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
         return MAIN_MENU
-    keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [HOME_BUTTON]]
+    #keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [HOME_BUTTON]]
+    keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [ [HOME_BUTTON] ]]
+
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("منوی ادمین:", reply_markup=reply_markup)
     return ADMIN_MENU
@@ -1203,7 +1205,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     if not person_id or not acc_nameA:
         await update.message.reply_text(
                 "❌ اطلاعات ضروری (شخص یا نام حساب) یافت نشد. لطفاً از ابتدا شروع کنید.",
-                reply_markup=ReplyKeyboardMarkup([MAIN_MENU], resize_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True)
         )
         return ADD_CHOOSE_ITEM_TYPE
     
@@ -1233,7 +1235,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
             conn.commit()
             await update.message.reply_text(
                 "✅ حساب جدید با موفقیت ثبت شد.",
-                reply_markup=ReplyKeyboardMarkup([[MAIN_MENU]], resize_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup([[HOME_BUTTON]], resize_keyboard=True)
             )
             context.user_data.pop('new_account', None)
             return ADD_CHOOSE_ITEM_TYPE
