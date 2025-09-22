@@ -344,7 +344,7 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
         return MAIN_MENU
     #keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [HOME_BUTTON]]
-    keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [ [HOME_BUTTON] ]]
+    keyboard = [["مشاهده کاربران مجاز 👁️"], ["افزودن کاربر ➕", "حذف کاربر ➖"], [HOME_BUTTON]]
 
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("منوی ادمین:", reply_markup=reply_markup)
