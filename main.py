@@ -1215,13 +1215,12 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
         with conn.cursor() as cur:
             cur.execute(
                 sql= """INSERT INTO accounts 
-                    (person_id, account_name, bank_name, account_number, card_number, shaba_number, card_photo_id)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s);""",
+                    (person_id, account_name, account_number, card_number, shaba_number, card_photo_id)
+                    VALUES (%s, %s, %s, %s, %s, %s);""",
                 
                 params= (
                     person_id,
                     acc_nameA,
-                    # bank_nameA,
 
                     acc_numA,
                     card_numA,
