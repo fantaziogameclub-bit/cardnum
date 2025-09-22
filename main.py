@@ -1214,20 +1214,21 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
     try:
         with conn.cursor() as cur:
             #cur.execute
-                sql= """INSERT INTO accounts 
+            sql= """INSERT INTO accounts 
                     (person_id, account_name, account_number, card_number, shaba_number, card_photo_id)
-                    VALUES (%s, %s, %s, %s, %s, %s);""",
+                    VALUES (%s, %s, %s, %s, %s, %s);"""
                 
-                params= (
+            params= (
                     person_id,
                     acc_nameA,
-
                     acc_numA,
                     card_numA,
                     shabaA,
-                    acc_photo_idA
-                 )
+                    acc_photo_idA)
             
+    #        if not person_id or not acc_nameA:
+    #            raise ValueError("person_id یا account_name مقدار ندارد")
+
             cur.execute(sql, params)
             conn.commit()
             await update.message.reply_text(
