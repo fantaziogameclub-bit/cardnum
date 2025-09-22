@@ -1615,13 +1615,13 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), admin_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),admin_add_user_confirm)
             ],
             ADMIN_REMOVE_USER: [
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),admin_remove_user),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), admin_menu),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
@@ -1660,7 +1660,7 @@ def main() -> None:
             ADD_NEW_PERSON_NAME: [
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_save_new_person_and_prompt_item_type),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
@@ -1670,13 +1670,13 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_set_existing_person_and_prompt_item_type)
             ],
             ADD_ACCOUNT_NAME: [
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_get_account_name),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_item_type),
             ],
@@ -1688,7 +1688,7 @@ def main() -> None:
             ADD_ACCOUNT_NUMBER: [
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_account_get_number),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu)
@@ -1698,7 +1698,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_account_get_card)
             ],
             ADD_ACCOUNT_SHABA: [
@@ -1706,7 +1706,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_account_get_shaba)
             ],
             ADD_ACCOUNT_PHOTO: [
@@ -1733,7 +1733,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),delete_confirm_person)
             ],
             DELETE_CONFIRM_PERSON: [
@@ -1746,7 +1746,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),delete_choose_account)
             ],
             DELETE_CHOOSE_ACCOUNT: [
@@ -1754,7 +1754,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),delete_confirm_account)
             ],
             DELETE_CONFIRM_ACCOUNT: [
@@ -1767,7 +1767,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),change_choose_target)
             ],
             CHANGE_CHOOSE_TARGET: [
@@ -1783,7 +1783,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),change_save_person_name)
             ],
             CHANGE_CHOOSE_ACCOUNT: [
@@ -1791,7 +1791,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),change_choose_field)
             ],
             CHANGE_CHOOSE_FIELD: [
@@ -1808,8 +1808,8 @@ def main() -> None:
             ],
             ADD_DOC_NAME: [
                 MessageHandler(
-                    filters.TEXT 
-                    & ~filters.COMMAND,
+                    filters.TEXT & 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), add_get_doc_name),
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), add_choose_person_type),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
@@ -1817,7 +1817,7 @@ def main() -> None:
             ADD_DOC_TEXT: [
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND, 
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]),add_get_doc_text),
                 MessageHandler(filters.Regex(f"^{YES_CONTINUE}$"), add_prompt_doc_files),  # هدایت به مرحله ارسال فایل
                 MessageHandler(filters.Regex(f"^{NO_EDIT}$"), add_get_doc_text),  # برگشت به مرحله وارد کردن متن
@@ -1861,7 +1861,7 @@ def main() -> None:
                 # در غیر این صورت، فرض می‌کنیم یک حساب انتخاب کرده
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND,
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_display_account_details),
             ],
              # <<< State جدید برای نمایش لیست مدارک >>>
@@ -1869,7 +1869,7 @@ def main() -> None:
                 MessageHandler(filters.Regex(f'^{BACK_BUTTON}$'), view_choose_account), # دکمه بازگشت به صفحه قبلی
                 MessageHandler(
                     filters.TEXT & 
-                    ~filters.COMMAND,
+                    ~filters.COMMAND & 
                     ~filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON]), view_display_document_details)
             ],
             VIEW_ACCOUNT_DETAILS: [
