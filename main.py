@@ -805,7 +805,7 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
         return MAIN_MENU
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT bank_name, account_number, card_number, shaba_number, card_photo_id FROM accounts WHERE id = %s;", (account_id,))
+            cur.execute("SELECT account_name, account_number, card_number, shaba_number, card_photo_id FROM accounts WHERE id = %s;", (account_id,))
             account = cur.fetchone()
             if not account:
                 await update.message.reply_text("خطا: حساب یافت نشد.")
