@@ -1233,7 +1233,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
             conn.commit()
             await update.message.reply_text(
                 "✅ حساب جدید با موفقیت ثبت شد.",
-                reply_markup=ReplyKeyboardMarkup([MAIN_MENU], resize_keyboard=True)
+                reply_markup=ReplyKeyboardMarkup([[MAIN_MENU]], resize_keyboard=True)
             )
             context.user_data.pop('new_account', None)
             return ADD_CHOOSE_ITEM_TYPE
