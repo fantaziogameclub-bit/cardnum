@@ -1213,7 +1213,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
         return ADD_CHOOSE_ITEM_TYPE
     try:
         with conn.cursor() as cur:
-            cur.execute(
+            #cur.execute
                 sql= """INSERT INTO accounts 
                     (person_id, account_name, account_number, card_number, shaba_number, card_photo_id)
                     VALUES (%s, %s, %s, %s, %s, %s);""",
@@ -1227,8 +1227,8 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
                     shabaA,
                     acc_photo_idA
                  )
-            )
-            # cur.execute(sql, params)
+            
+            cur.execute(sql, params)
             conn.commit()
             await update.message.reply_text(
                 "✅ حساب جدید با موفقیت ثبت شد.",
