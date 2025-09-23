@@ -10,7 +10,7 @@ from telegram.ext import (
     ConversationHandler,
     MessageHandler,
     ContextTypes,
-    filters,
+    filters
 )
 # from telegram.constants import ParseMode
 from telegram.error import BadRequest
@@ -73,8 +73,7 @@ NO_EDIT = "خیر، ویرایش متن✏️"
 DOCUMENTS_BUTTON = "مدارک 📑"
 
 FIELD_TO_COLUMN_MAP = {
-    "نام حساب 🧾": "account_name", # PATCH 1: Added account_name
-    "نام بانک 🏦": "bank_name",
+    "نام حساب 🧾": "account_name", 
     "شماره حساب 🔢": "account_number",
     "شماره کارت 💳": "card_number",
     "شماره شبا 🌐": "shaba_number",
@@ -121,12 +120,11 @@ def setup_database():
                     id SERIAL PRIMARY KEY,
                     person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
                     account_name TEXT NOT NULL,
-                    bank_name TEXT,
                     account_number TEXT,
                     card_number TEXT,
                     shaba_number TEXT,
                     card_photo_id TEXT
-                );
+                    );
             """)
             # --- New Table for Documents ---
             cur.execute("""
@@ -371,8 +369,8 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         users_lines = []
         for tid, fn in users:
-            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 {tid}")
-        
+            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
+
         message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         message_safe = escape_markdown(message, version=2)
         await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
@@ -1195,7 +1193,6 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
         return await edit_menu(update, context)
     
     acc_nameA = new_account_data.get('account_name')
-    # bank_name = TEST 
     bank_nameA = new_account_data.get('bank_name')
     acc_numA = new_account_data.get('account_number')
     card_numA = new_account_data.get('card_number')
