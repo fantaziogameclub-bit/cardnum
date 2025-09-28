@@ -809,7 +809,7 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
                 await update.message.reply_text("خطا: حساب یافت نشد.")
                 return await view_choose_account(update, context) # Reshow accounts
             
-            bank, acc_num, card_num, shaba, photo_id = account
+            account_name, acc_num, card_num, shaba, photo_id = account
             person_name = context.user_data.get('selected_person_name', 'N/A')
             
             # Escape text parts for HTML safety
