@@ -814,7 +814,7 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
             
             # Escape text parts for HTML safety
             person_name_safe = escape(str(person_name))
-            bank_safe = escape(str(bank or 'N/A'))
+            account_name_safe = escape(str(account_name))
             # person_name_safe = escape_markdown(person_name, version=2)
             # bank_safe = escape_markdown(bank or 'N/A', version=2)
             # acc_num_safe = escape_markdown(acc_num, version=2) if acc_num else None
@@ -835,7 +835,7 @@ async def view_display_account_details(update: Update, context: ContextTypes.DEF
             # Build the HTML message
             msg_lines = []
             msg_lines.append(f"👤 اطلاعات حساب ({person_name_safe})")
-            msg_lines.append(f"🏦 {bank_safe}")
+            msg_lines.append(f"🏦 {account_name_safe}")
             if acc_num_mono:
                 msg_lines.append(f"🔢 {acc_num_mono}")
             if card_num_mono:
