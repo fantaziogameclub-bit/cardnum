@@ -220,7 +220,7 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
     if not conn: return None
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, bank_name FROM accounts WHERE person_id = %s ORDER BY bank_name;", (person_id,))
+            cur.execute("SELECT id, account_name FROM accounts WHERE person_id = %s ORDER BY account_name;", (person_id,))
             accounts = cur.fetchall()
             # Use a more robust key, e.g., combining bank, card, and id
             # context.user_data['accounts_list'] = {f"{acc[1] or 'N/A'} - {acc[2] or 'N/A'} ({acc[0]})": acc[0] for acc in accounts}
