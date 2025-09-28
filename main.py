@@ -226,8 +226,8 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
             # context.user_data['accounts_list'] = {f"{acc[1] or 'N/A'} - {acc[2] or 'N/A'} ({acc[0]})": acc[0] for acc in accounts}
             context.user_data['accounts_list_tuples'] = accounts
             context.user_data['accounts_list_dict'] = {
-                # f"{acc[1] or 'N/A'}": acc[0]
-                f"{acc[1]} - {acc[2]}" : acc[0]
+                f"{acc[1] or 'N/A'}": acc[0]
+                #f"{acc[1]} - {acc[2]}" : acc[0]
                 for acc in accounts
             }
 
