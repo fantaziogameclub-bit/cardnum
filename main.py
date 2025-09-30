@@ -385,16 +385,16 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await update.message.reply_text("هیچ کاربری ثبت نشده است.")
             return ADMIN_MENU
 
-    users_lines = []
-    for tid, fn, username in users:
-        fn_safe = escape_markdown(fn or 'بدون‌نام', version=2)
-        tid_safe = escape_markdown(str(tid), version=2)
-        username_safe = f"@{escape_markdown(username, version=2)}" if username else "ندارد"
+        users_lines = []
+        for tid, fn, username in users:
+            fn_safe = escape_markdown(fn or 'بدون‌نام', version=2)
+            tid_safe = escape_markdown(str(tid), version=2)
+            username_safe = f"@{escape_markdown(username, version=2)}" if username else "ندارد"
 
-        users_lines.append(f"👤 {fn_safe}\n🆔 نام کاربری: {username_safe}\n{tid_safe}")
+            users_lines.append(f"👤 {fn_safe}\n🆔 نام کاربری: {username_safe}\n{tid_safe}")
 
-    message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-    await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+        message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+        await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
 
 
 ####----------
