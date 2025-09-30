@@ -57,7 +57,7 @@ except KeyError as e:
     CHANGE_CHOOSE_DOCUMENT_TO_EDIT, CHANGE_PROMPT_DOCUMENT_OPTIONS,
     DELETE_CHOOSE_DOC_FOR_PERSON, 
      
-) = range(40)
+) = range(41)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
