@@ -389,7 +389,7 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         for tid, fn, username in users:
             # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
             users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else "ندارد"}\n{tid}")
-# "@{chat.username}" if chat.username else "ندارد"
+            
         message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         message_safe = escape_markdown(message, version=2)
         await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
