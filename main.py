@@ -385,21 +385,34 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await update.message.reply_text("هیچ کاربری ثبت نشده است.")
             return ADMIN_MENU
 
-        users_lines = []
-        for tid, fn, username in users:
-            # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
-            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
-            
-        message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-        message_safe = escape_markdown(message, version=2)
-        await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
+    users_lines = []
+    for tid, fn, username in users:
+        fn_safe = escape_markdown(fn or 'بدون‌نام', version=2)
+        tid_safe = escape_markdown(str(tid), version=2)
+        username_safe = f"@{escape_markdown(username, version=2)}" if username else "ندارد"
 
+        users_lines.append(f"👤 {fn_safe}\n🆔 نام کاربری: {username_safe}\n{tid_safe}")
+
+    message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+    await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+
+
+####----------
+        #users_lines = []
+        #for tid, fn, username in users:
+            # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
+        #    users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
+            
+        #message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+        #message_safe = escape_markdown(message, version=2)
+        #await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
+####--------
             # tid_safe = escape_markdown(str(tid), version=2)
             # fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
             # users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
         # message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         # await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
-
+####---------
     except Exception as e:
         logger.error(f"Error in admin_view_users: {e}", exc_info=True)
         await update.message.reply_text("❌ خطایی در دریافت لیست کاربران رخ داد.")
