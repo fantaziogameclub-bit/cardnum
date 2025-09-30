@@ -1632,7 +1632,7 @@ async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEF
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     # buttons = [p[1] for p in persons]
-    await get_documents_for_person_from_db(person, context)
+    await get_documents_for_person_from_db(persons, context)
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
     
     if not doc_buttons:
