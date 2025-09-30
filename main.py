@@ -313,14 +313,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
       try:
         with conn.cursor() as cur:
             cur.execute(
-                """
-                INSERT INTO users (telegram_id, first_name, username) 
-                VALUES (%s, %s, %s) 
-                ON CONFLICT (telegram_id) DO UPDATE 
-                SET first_name = EXCLUDED.first_name, 
-                    username = EXCLUDED.username;
-                """,
-                (user.id, user.first_name)
+                """INSERT INTO users (telegram_id, first_name, username) VALUES (%s, %s, %s) ON CONFLICT (telegram_id) DO UPDATE SET first_name = EXCLUDED.first_name, username = EXCLUDED.username;""",
+                (user.id, user.first_name, user.username)
             )
             conn.commit()
       finally:
