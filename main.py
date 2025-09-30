@@ -55,6 +55,7 @@ except KeyError as e:
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
     CHANGE_CHOOSE_DOCUMENT_TO_EDIT, CHANGE_PROMPT_DOCUMENT_OPTIONS,
+    DELETE_CHOOSE_DOC_FOR_PERSON, 
      
 ) = range(40)
 
@@ -350,6 +351,8 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ADMIN_MENU
 
 async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # user = update.effective_user
+    # username = user.username if user.username else "N/A"
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
         return MAIN_MENU
@@ -361,7 +364,7 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT telegram_id, first_name FROM users ORDER BY first_name;")
+            cur.execute("SELECT telegram_id, first_name, username FROM users ORDER BY first_name;")
             users = cur.fetchall()
         
         if not users:
@@ -369,8 +372,8 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             return ADMIN_MENU
 
         users_lines = []
-        for tid, fn in users:
-            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
+        for tid, fn, username in users:
+            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
 
         message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         message_safe = escape_markdown(message, version=2)
@@ -886,7 +889,7 @@ async def view_back_to_accounts(update: Update, context: ContextTypes.DEFAULT_TY
     documents = await get_documents_for_person_from_db(person_id, context)
     # Re-display the accounts list for the same person
     account_buttons = list(context.user_data.get('accounts_list_dict', {}).keys())
-    accounts = await get_accounts_for_person_from_db(person_id, context)
+    # accounts = await get_accounts_for_person_from_db(person_id, context)
     # buttons = list(context.user_data.get('accounts_list_dict', {}).keys())
     buttons = account_buttons.copy()
     if documents:
@@ -1254,7 +1257,7 @@ async def add_account_get_photo_and_save(update: Update, context: ContextTypes.D
 # ... (Functions from previous response: delete_choose_type, ..., delete_execute_account_deletion)
 # I will write them out again to be complete as requested.
 async def delete_choose_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    keyboard = [["حذف شخص 👤", "حذف حساب 💳"], [BACK_BUTTON, HOME_BUTTON]]
+    keyboard = [["حذف شخص 👤", "حذف حساب 💳","حذف مدرک 📄"], [BACK_BUTTON, HOME_BUTTON]]
     await update.message.reply_text("قصد حذف چه چیزی را دارید؟\n\n⚠️ *توجه:* با حذف شخص، تمام حساب‌هایش نیز حذف می‌شود\\.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
     return DELETE_CHOOSE_TYPE
 
@@ -1408,7 +1411,7 @@ async def change_prompt_document_options(update: Update, context: ContextTypes.D
     await update.message.reply_text(
         f"گزینه‌های ویرایش برای مدرک '{doc_name}' در آینده اضافه خواهد شد.\n"
         "در حال حاضر می‌توانید مدرک را حذف کرده و مجدداً اضافه نمایید.",
-        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True)
+        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON , HOME_BUTTON]], resize_keyboard=True)
     )
     # با زدن بازگشت، به لیست مدارک برمی‌گردد
     return CHANGE_CHOOSE_DOCUMENT_TO_EDIT
@@ -1484,7 +1487,8 @@ async def change_save_person_name(update: Update, context: ContextTypes.DEFAULT_
 
 async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_id = context.user_data.get('change_person', {}).get('id')
-    accounts = await get_accounts_for_person_from_db(person_id, context)
+    # accounts = await get_accounts_for_person_from_db(person_id, context)
+    accounts = list(context.user_data.get('accounts_list_dict', {}).keys())
     if not accounts:
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
         return await change_choose_target(update, context)
@@ -1589,6 +1593,45 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # imports, logging config, env vars, state definitions, keyboards, db functions
 # ...
 # تمام هندلرهای start, main_menu, admin, view, edit, add, delete, change بدون تغییر
+
+async def change_prompt_document_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """After selecting a document, show what can be edited."""
+    doc_name = update.message.text
+    doc_id = context.user_data.get('documents_list_dict', {}).get(doc_name)
+
+    if not doc_id:
+        await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
+        return CHANGE_CHOOSE_DOCUMENT_TO_EDIT
+
+    context.user_data['selected_doc_id'] = doc_id
+    context.user_data['selected_doc_name'] = doc_name
+
+    # در آینده می‌توانید برای هر کدام از این گزینه‌ها یک مسیر کامل بسازید
+    await update.message.reply_text(
+        f"گزینه‌ حذف برای مدرک '{doc_name}' در آینده اضافه خواهد شد.\n"
+        "در حال حاضر می‌توانید مدرک را حذف کرده و مجدداً اضافه نمایید.",
+        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON , HOME_BUTTON]], resize_keyboard=True)
+    )
+    # با زدن بازگشت، به لیست مدارک برمی‌گردد
+    return DELETE_CHOOSE_DOC_FOR_PERSON
+
+async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    persons = await get_persons_from_db(context)
+    if not persons:
+        await update.message.reply_text("هیچ شخصی نیست.")
+        return await edit_menu(update, context)
+    # buttons = [p[1] for p in persons]
+    await get_documents_for_person_from_db(persons, context)
+    doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
+    
+    if not doc_buttons:
+        await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
+        # برمیگردیم به صفحه انتخاب حساب/مدرک
+        return await delete_choose_type(update, context)
+    
+    keyboard = build_menu_paginated(doc_buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
+    return DELETE_CHOOSE_DOC_FOR_PERSON
 
 def main() -> None:
     setup_database()
@@ -1726,7 +1769,8 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), edit_menu),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
                 MessageHandler(filters.Regex("^حذف شخص 👤$"), delete_choose_person),
-                MessageHandler(filters.Regex("^حذف حساب 💳$"), delete_choose_account_for_person)
+                MessageHandler(filters.Regex("^حذف حساب 💳$"), delete_choose_account_for_person),
+                MessageHandler(filters.Regex("^حذف مدرک 📄$"), delete_choose_doc_for_person)
             ],
             DELETE_CHOOSE_PERSON: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_type),
@@ -1881,6 +1925,13 @@ def main() -> None:
                     filters.TEXT & 
                     ~filters.COMMAND &
                     ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), change_prompt_document_options),
+             ],
+             DELETE_CHOOSE_DOC_FOR_PERSON: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target ),
+                MessageHandler(
+                    filters.TEXT & 
+                    ~filters.COMMAND &
+                    ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), change_prompt_document_delete),
              ],
 
 
