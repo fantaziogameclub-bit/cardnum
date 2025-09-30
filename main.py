@@ -1617,11 +1617,12 @@ async def change_prompt_document_delete(update: Update, context: ContextTypes.DE
 
 async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     persons = await get_persons_from_db(context)
+    person_id = context.user_data.get('selected_person_id')
     if not persons:
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     # buttons = [p[1] for p in persons]
-    await get_documents_for_person_from_db(persons, context)
+    await get_documents_for_person_from_db(person_id, context)
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
     
     if not doc_buttons:
