@@ -142,9 +142,19 @@ def setup_database():
                 "INSERT INTO users (telegram_id, first_name) VALUES (%s, %s) ON CONFLICT (telegram_id) DO NOTHING;",
                 (ADMIN_TELEGRAM_ID, 'Admin')
             )
-            cur.execute(
-                "ALTER TABLE users ADD COLUMN username TEXT;",
-            )
+            cur.execute("""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 
+                                FROM information_schema.columns 
+                                WHERE table_name='users' AND column_name='username'
+                            ) THEN
+                                ALTER TABLE users ADD COLUMN username TEXT;
+                            END IF;
+                        END $$;
+                        """)
+
             
             conn.commit()
     except psycopg2.Error as e:
@@ -377,8 +387,9 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         users_lines = []
         for tid, fn, username in users:
-            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
-
+            # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
+            users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else "ندارد"}\n{tid}")
+# "@{chat.username}" if chat.username else "ندارد"
         message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         message_safe = escape_markdown(message, version=2)
         await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
