@@ -142,6 +142,10 @@ def setup_database():
                 "INSERT INTO users (telegram_id, first_name) VALUES (%s, %s) ON CONFLICT (telegram_id) DO NOTHING;",
                 (ADMIN_TELEGRAM_ID, 'Admin')
             )
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN username TEXT;",
+            )
+            
             conn.commit()
     except psycopg2.Error as e:
         logger.error(f"Database setup error: {e}")
@@ -309,7 +313,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
       try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO users (telegram_id, first_name) VALUES (%s, %s) ON CONFLICT (telegram_id) DO UPDATE SET first_name = EXCLUDED.first_name;",
+                """
+                INSERT INTO users (telegram_id, first_name, username) 
+                VALUES (%s, %s, %s) 
+                ON CONFLICT (telegram_id) DO UPDATE 
+                SET first_name = EXCLUDED.first_name, 
+                    username = EXCLUDED.username;
+                """,
                 (user.id, user.first_name)
             )
             conn.commit()
@@ -1617,12 +1627,12 @@ async def change_prompt_document_delete(update: Update, context: ContextTypes.DE
 
 async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     persons = await get_persons_from_db(context)
-    person_id = context.user_data.get('selected_person_id')
+    # person_id = context.user_data.get('selected_person_id')
     if not persons:
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     # buttons = [p[1] for p in persons]
-    await get_documents_for_person_from_db(person_id, context)
+    await get_documents_for_person_from_db(person, context)
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
     
     if not doc_buttons:
