@@ -702,7 +702,7 @@ async def get_documents_for_person_from_db(person_id: int, context: ContextTypes
     try:
         with conn.cursor() as cur:
             # فقط نام و آیدی مدارک رو برای ساختن دکمه‌ها می‌گیریم
-            cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;", (person_id,))
+            cur.execute("SELECT id, doc_name FROM documents WHERE person_id = ANY(%s) ORDER BY doc_name;", (person_id,))
             documents = cur.fetchall()
             # دیکشنری مدارک رو در user_data ذخیره می‌کنیم برای استفاده در مرحله بعد
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
