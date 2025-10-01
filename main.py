@@ -55,9 +55,9 @@ except KeyError as e:
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
     CHANGE_CHOOSE_DOCUMENT_TO_EDIT, CHANGE_PROMPT_DOCUMENT_OPTIONS,
-    DELETE_CHOOSE_DOC_FOR_PERSON, 
+    DELETE_CHOOSE_DOC_FOR_PERSON, DELETE_CHOOSE_DOC
      
-) = range(41)
+) = range(42)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
@@ -1734,6 +1734,19 @@ async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEF
     await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
     return DELETE_CHOOSE_DOC_FOR_PERSON
 
+async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    person_name = update.message.text
+    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
+    if not person_id: return DELETE_CHOOSE_DOC_FOR_PERSON
+    accounts = await get_accounts_for_person_from_db(person_id, context)
+    if not accounts:
+        await update.message.reply_text(f"هیچ مدرکی برای '{person_name}' نیست.")
+        return await delete_choose_account_for_person(update, context)
+    buttons = list(context.user_data['accounts_list_dict'].keys())
+    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    await update.message.reply_text(f"کدام مدرک '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
+    return DELETE_CHOOSE_DOC
+
 def main() -> None:
     setup_database()
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -2032,7 +2045,7 @@ def main() -> None:
                 MessageHandler(
                     filters.TEXT & 
                     ~filters.COMMAND &
-                    ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), change_prompt_document_delete),
+                    ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), delete_choose_doc),
              ],
 
 
