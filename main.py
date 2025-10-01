@@ -47,13 +47,15 @@ except KeyError as e:
     EDIT_MENU,
     ADD_CHOOSE_PERSON_TYPE, ADD_NEW_PERSON_NAME, ADD_CHOOSE_EXISTING_PERSON,
     ADD_CHOOSE_ITEM_TYPE,
-    # ADD_ACCOUNT_BANK, 
+    # 15, 
     ADD_ACCOUNT_NAME ,ADD_ACCOUNT_NUMBER, ADD_ACCOUNT_CARD, ADD_ACCOUNT_SHABA, ADD_ACCOUNT_PHOTO,
     ADD_DOC_NAME, ADD_DOC_TEXT, ADD_DOC_FILES, ADD_DOC_SAVE,
     DELETE_CHOOSE_TYPE, DELETE_CHOOSE_PERSON, DELETE_CONFIRM_PERSON,
+    # 27, 
     DELETE_CHOOSE_ACCOUNT_FOR_PERSON, DELETE_CHOOSE_ACCOUNT, DELETE_CONFIRM_ACCOUNT,
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
+    # 38, 
     CHANGE_CHOOSE_DOCUMENT_TO_EDIT, CHANGE_PROMPT_DOCUMENT_OPTIONS,
     DELETE_CHOOSE_DOC_FOR_PERSON, DELETE_CHOOSE_DOC, DELETE_CONFIRM_DOC
      
@@ -2103,6 +2105,14 @@ def main() -> None:
                 MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), delete_execute_doc_deletion),
                 MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), delete_cancel),
                 MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
+            DELETE_CHOOSE_DOC: [
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_doc),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+                MessageHandler(
+                    filters.TEXT & 
+                    ~filters.COMMAND & 
+                    ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])),delete_confirm_doc)
             ],
 
 
