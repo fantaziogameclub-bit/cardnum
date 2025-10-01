@@ -856,7 +856,9 @@ async def view_choose_document(update: Update, context: ContextTypes.DEFAULT_TYP
 async def view_display_document_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Fetches and displays the details of a selected document."""
     document_name  = update.message.text
-    documents_list  = context.user_data.get('documents_list_dict', {}).get(document_name)
+    documents_list  = context.user_data.get('documents_list_dict', {})
+    if not isinstance(documents_list, dict):
+        documents_list = {}
 
     if document_name not in documents_list:
         await update.message.reply_text("⚠️ مدرک مورد نظر پیدا نشد.")
