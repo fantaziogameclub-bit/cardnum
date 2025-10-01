@@ -783,7 +783,7 @@ async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFA
                 cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;",(person_id,))
 
             documents = cur.fetchall()
-            # context.user_data['documents_list_tuples'] = documents
+            context.user_data['documents_list_tuples'] = documents
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents} if documents else {}
             return documents
     finally:
@@ -1754,6 +1754,16 @@ async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     person_name = update.message.text
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return DELETE_CHOOSE_DOC_FOR_PERSON
+    persons = await get_persons_from_db(context)
+    if not persons:
+        await update.message.reply_text("هیچ شخصی یافت نشد.", reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True))
+        return DELETE_CHOOSE_TYPE
+    # استخراج فقط آیدی‌ها
+    person_ids = [p[0] for p in persons]
+
+    # گرفتن مدارک
+    await get_documents_for_person_from_db(person_ids, context)
+
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
     if not doc_buttons:
         await update.message.reply_text("📭 هیچ مدرکی ثبت نشده یا پیدا نشد.")
