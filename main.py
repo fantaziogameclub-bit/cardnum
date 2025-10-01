@@ -400,7 +400,7 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         users_lines = []
         for tid, fn, username in users:
             fn_display = escape(fn or 'بدون‌نام')
-            if username 
+            if username: 
                 username_display = f"@{escape(username)}"
             else:
                 username_display = "ندارد"
