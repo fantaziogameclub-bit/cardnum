@@ -1500,12 +1500,33 @@ async def change_choose_person(update: Update, context: ContextTypes.DEFAULT_TYP
 ## -------           ---------           --------------     ------------              ---------------
 async def change_choose_document_to_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Displays documents of the selected person for editing."""
+    # اول تلاش می‌کنیم id از مسیر قبلی بگیریم
     person_id = context.user_data.get('selected_person_id')
-    person_name = context.user_data.get('selected_person_name', 'شخص')
 
-    # از تابع کمکی که قبلا داشتیم برای گرفتن مدارک استفاده می‌کنیم
+    # person_id = context.user_data.get('selected_person_id')
+    # person_name = context.user_data.get('selected_person_name', 'شخص')
+    # اگر خالی بود، از انتخاب کاربر یا change_person بگیریم
+    if not person_id:
+        person_id = context.user_data.get('change_person', {}).get('id')
+    if not person_id:
+        selected_person_name = update.message.text
+        person_id = context.user_data.get('persons_list_dict', {}).get(selected_person_name)
+
+    if not person_id:
+        await update.message.reply_text("⚠️ شخص انتخابی معتبر نیست.")
+        return CHANGE_CHOOSE_PERSON
+    
+    # گرفتن اسم شخص برای پیام‌ها
+    person_name = context.user_data.get('selected_person_name') \
+                   or context.user_data.get('change_person', {}).get('name') \
+                   or selected_person_name or 'شخص'
+    # فراخوانی مدارک
     await get_documents_for_person_from_db(person_id, context)
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
+
+    # # از تابع کمکی که قبلا داشتیم برای گرفتن مدارک استفاده می‌کنیم
+    # await get_documents_for_person_from_db(person_id, context)
+    # doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
 
     if not doc_buttons:
         await update.message.reply_text(f"هیچ مدرکی برای '{person_name}' جهت ویرایش وجود ندارد.")
@@ -1514,9 +1535,11 @@ async def change_choose_document_to_edit(update: Update, context: ContextTypes.D
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text(f"چه تغییری برای '{person_name}' ایجاد می‌کنید؟", reply_markup=reply_markup)
         return CHANGE_CHOOSE_TARGET
-
+    
+    # نمایش لیست مدارک
     keyboard = build_menu_paginated(doc_buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام مدرک را می‌خواهید ویرایش کنید؟", reply_markup=keyboard)
+    
     return CHANGE_CHOOSE_DOCUMENT_TO_EDIT
 
 
