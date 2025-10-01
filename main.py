@@ -364,77 +364,123 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("منوی ادمین:", reply_markup=reply_markup)
     return ADMIN_MENU
 
+##########$$$$$$$$$$$%%%%%%%%%%---------------Frome here 
+
+# async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+#     # user = update.effective_user
+#     # username = user.username if user.username else "N/A"
+#     if not is_admin(update.effective_user.id):
+#         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
+#         return MAIN_MENU
+    
+#     conn = get_db_connection()
+#     if not conn:
+#         await update.message.reply_text("خطا در اتصال به پایگاه داده.")
+#         return ADMIN_MENU
+    
+#     try:
+#         with conn.cursor() as cur:
+#             cur.execute("SELECT telegram_id, first_name, username FROM users ORDER BY first_name;")
+#             users = cur.fetchall()
+        
+#         if not users:
+#             await update.message.reply_text("هیچ کاربری ثبت نشده است.")
+#             return ADMIN_MENU
+# ###===--------
+        
+#         #users_lines = []
+#         #for tid, fn, username in users:
+#         #    fn_safe = escape_markdown(fn or 'بدون‌نام', version=2)
+#         #    tid_safe = escape_markdown(str(tid), version=2)
+#         #    username_safe = f"@{escape_markdown(username, version=2)}" if username else "ندارد"
+
+#         #    users_lines.append(f"👤 {fn_safe}\n🆔 نام کاربری: {username_safe}\n{tid_safe}")
+
+#         #message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+#         #await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+# ####----
+#         users_lines = []
+#         for tid, fn, username in users:
+#             fn_display = escape(fn or 'بدون‌نام')
+#             # if username: 
+#             #     username_display = f"@{escape(username)}"
+#             # else:
+#             #     username_display = "ندارد"
+#             username_display = f"@{escape(username)}" if username else "ندارد"    
+#             tid_display = escape(str(tid))
+    
+#             #username_display = f"@{username}" if username else "ندارد"
+#             users_lines.append(
+#                 f"👤 {fn_display}<br>"
+#                 f"🆔 نام کاربری: {username_display}<br>"
+#                 f"{tid_display}"
+#             )
+
+#         message_html = "لیست کاربران مجاز:<br><br>" + "<br><br>".join(users_lines)
+#         await update.message.reply_text(message_html, parse_mode=ParseMode.HTML)
+
+
+
+# ####----------
+#         #users_lines = []
+#         #for tid, fn, username in users:
+#             # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
+#         #    users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
+            
+#         #message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+#         #message_safe = escape_markdown(message, version=2)
+#         #await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
+# ####--------
+#             # tid_safe = escape_markdown(str(tid), version=2)
+#             # fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
+#             # users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
+#         # message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
+#         # await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
+# ####---------
+#     except Exception as e:
+#         logger.error(f"Error in admin_view_users: {e}", exc_info=True)
+#         await update.message.reply_text("❌ خطایی در دریافت لیست کاربران رخ داد.")
+
+#     finally:
+#         conn.close()
+
+#     return ADMIN_MENU
+
+##########$$$$$$$$$$$%%%%%%%%%%---------------To here 1
 async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    # user = update.effective_user
-    # username = user.username if user.username else "N/A"
     if not is_admin(update.effective_user.id):
         await update.message.reply_text("🚫 این بخش فقط برای ادمین است.")
         return MAIN_MENU
-    
+
     conn = get_db_connection()
     if not conn:
         await update.message.reply_text("خطا در اتصال به پایگاه داده.")
         return ADMIN_MENU
-    
+
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT telegram_id, first_name, username FROM users ORDER BY first_name;")
             users = cur.fetchall()
-        
+
         if not users:
             await update.message.reply_text("هیچ کاربری ثبت نشده است.")
             return ADMIN_MENU
-###===--------
-        
-        #users_lines = []
-        #for tid, fn, username in users:
-        #    fn_safe = escape_markdown(fn or 'بدون‌نام', version=2)
-        #    tid_safe = escape_markdown(str(tid), version=2)
-        #    username_safe = f"@{escape_markdown(username, version=2)}" if username else "ندارد"
 
-        #    users_lines.append(f"👤 {fn_safe}\n🆔 نام کاربری: {username_safe}\n{tid_safe}")
-
-        #message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-        #await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
-####----
         users_lines = []
         for tid, fn, username in users:
             fn_display = escape(fn or 'بدون‌نام')
-            # if username: 
-            #     username_display = f"@{escape(username)}"
-            # else:
-            #     username_display = "ندارد"
-            username_display = f"@{escape(username)}" if username else "ندارد"    
+            username_display = f"@{escape(username)}" if username else "ندارد"
             tid_display = escape(str(tid))
-    
-            #username_display = f"@{username}" if username else "ندارد"
+
             users_lines.append(
-                f"👤 {fn_display}<br>"
-                f"🆔 نام کاربری: {username_display}<br>"
+                f"👤 {fn_display}\n"
+                f"🆔 نام کاربری: {username_display}\n"
                 f"{tid_display}"
             )
 
-        message_html = "لیست کاربران مجاز:<br><br>" + "<br><br>".join(users_lines)
+        message_html = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
         await update.message.reply_text(message_html, parse_mode=ParseMode.HTML)
 
-
-
-####----------
-        #users_lines = []
-        #for tid, fn, username in users:
-            # users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username or 'ندارد'}\n{tid}")
-        #    users_lines.append(f"👤 {fn or 'بدون‌نام'}\n🆔 نام کاربری: @{username if username else 'ندارد'}\n{tid}")
-            
-        #message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-        #message_safe = escape_markdown(message, version=2)
-        #await update.message.reply_text(message_safe, parse_mode=ParseMode.MARKDOWN_V2)
-####--------
-            # tid_safe = escape_markdown(str(tid), version=2)
-            # fn_safe = escape_markdown(fn or "بدون‌نام", version=2)
-            # users_lines.append(f"👤 {fn_safe}\n🆔 `{tid_safe}`")
-        # message = "لیست کاربران مجاز:\n\n" + "\n\n".join(users_lines)
-        # await update.message.reply_text(message, parse_mode=ParseMode.MARKDOWN_V2)
-####---------
     except Exception as e:
         logger.error(f"Error in admin_view_users: {e}", exc_info=True)
         await update.message.reply_text("❌ خطایی در دریافت لیست کاربران رخ داد.")
@@ -444,6 +490,8 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     return ADMIN_MENU
 
+
+##########$$$$$$$$$$$%%%%%%%%%%---------------To here 2
 async def admin_prompt_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("شناسه عددی تلگرام کاربر جدید را وارد کنید:", reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True))
     return ADMIN_ADD_USER_CONFIRM
