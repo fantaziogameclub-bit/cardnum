@@ -1612,7 +1612,7 @@ async def change_save_person_name(update: Update, context: ContextTypes.DEFAULT_
 
 async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     person_id = context.user_data.get('change_person', {}).get('id')
-    # accounts = await get_accounts_for_person_from_db(person_id, context)
+    await get_accounts_for_person_from_db(person_id, context)
     accounts = list(context.user_data.get('accounts_list_dict', {}).keys())
     if not accounts:
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
