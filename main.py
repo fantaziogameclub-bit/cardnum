@@ -55,9 +55,9 @@ except KeyError as e:
     CHANGE_CHOOSE_PERSON, CHANGE_CHOOSE_TARGET, CHANGE_PROMPT_PERSON_NAME, CHANGE_SAVE_PERSON_NAME,
     CHANGE_CHOOSE_ACCOUNT, CHANGE_CHOOSE_FIELD, CHANGE_PROMPT_FIELD_VALUE, CHANGE_SAVE_FIELD_VALUE,
     CHANGE_CHOOSE_DOCUMENT_TO_EDIT, CHANGE_PROMPT_DOCUMENT_OPTIONS,
-    DELETE_CHOOSE_DOC_FOR_PERSON, DELETE_CHOOSE_DOC
+    DELETE_CHOOSE_DOC_FOR_PERSON, DELETE_CHOOSE_DOC, DELETE_CONFIRM_DOC
      
-) = range(42)
+) = range(43)
 
 # --- Keyboard Buttons & Mappings ---
 HOME_BUTTON = "صفحه اصلی 🏠"
@@ -1398,6 +1398,7 @@ async def delete_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await update.message.reply_text("عملیات حذف لغو شد.")
     context.user_data.pop('person_to_delete', None)
     context.user_data.pop('account_to_delete', None)
+    context.user_data.pop('documents_to_delete', None)
     return await edit_menu(update, context)
 
 async def delete_choose_account_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1714,37 +1715,15 @@ async def change_prompt_document_delete(update: Update, context: ContextTypes.DE
     # با زدن بازگشت، به لیست مدارک برمی‌گردد
     return DELETE_CHOOSE_DOC_FOR_PERSON
 
-#
-# async def delete_choose_account_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-#     persons = await get_persons_from_db(context)
-#     if not persons:
-#         await update.message.reply_text("هیچ شخصی نیست.")
-#         return await edit_menu(update, context)
-#     buttons = [p[1] for p in persons]
-#     keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
-#     await update.message.reply_text("حساب مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
-#     return DELETE_CHOOSE_ACCOUNT_FOR_PERSON
-#
+
 async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     persons = await get_persons_from_db(context)
-    # person_id = context.user_data.get('selected_person_id')
     if not persons:
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     buttons = [p[1] for p in persons]
     keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
-    # person_ids = [p[0] for p in persons]
-    # await get_documents_for_person_from_db(person_ids, context)
-    # await get_documents_for_person_from_db(persons, context)
     await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
-    # doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
-    
-    # if not doc_buttons:
-    #     await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
-    #     return await delete_choose_type(update, context)
-    
-    # keyboard = build_menu_paginated(doc_buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
-    # await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
     return DELETE_CHOOSE_DOC_FOR_PERSON
 
 async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1755,10 +1734,36 @@ async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     if not accounts:
         await update.message.reply_text(f"هیچ مدرکی برای '{person_name}' نیست.")
         return await delete_choose_account_for_person(update, context)
-    buttons = list(context.user_data['accounts_list_dict'].keys())
+    buttons = list(context.user_data['documents_list_dict'].keys())
     keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"کدام مدرک '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_DOC
+
+async def delete_confirm_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    documents_key = update.message.text
+    documents_id = context.user_data.get('documents_list_dict', {}).get(documents_key)
+    if not documents_id: return DELETE_CHOOSE_ACCOUNT
+    context.user_data['documents_to_delete'] = {'id': documents_id, 'key': documents_key}
+    # keyboard = [["بله، حذف کن ✅", "نه، لغو کن ❌"], [HOME_BUTTON]]
+    keyboard = [[YES_BUTTON , NO_BUTTON], [HOME_BUTTON]]
+
+    await update.message.reply_text(f"‼️ *اخطار نهایی*\nآیا از حذف  '{documents_key}' مطمئنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True), parse_mode=ParseMode.MARKDOWN_V2)
+    return DELETE_CONFIRM_DOC
+
+async def delete_execute_doc_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    documents_to_delete = context.user_data.get('documents_to_delete')
+    if not documents_to_delete: return await edit_menu(update, context)
+    conn = get_db_connection()
+    if not conn: return await edit_menu(update, context)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM documents WHERE id = %s;", (documents_to_delete['id'],))
+            conn.commit()
+            await update.message.reply_text(f"✅ مدرک '{documents_to_delete['key']}' حذف شد.")
+    except psycopg2.Error: await update.message.reply_text("❌ خطایی در حذف رخ داد.")
+    finally: conn.close()
+    context.user_data.pop('documents_to_delete', None)
+    return await edit_menu(update, context)
 
 def main() -> None:
     setup_database()
@@ -2053,13 +2058,18 @@ def main() -> None:
                     ~filters.COMMAND &
                     ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), change_prompt_document_options),
              ],
-             DELETE_CHOOSE_DOC_FOR_PERSON: [
+            DELETE_CHOOSE_DOC_FOR_PERSON: [
                 MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_type ),
                 MessageHandler(
                     filters.TEXT & 
                     ~filters.COMMAND &
                     ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), delete_choose_doc),
-             ],
+            ],
+            DELETE_CONFIRM_DOC: [
+                MessageHandler(filters.Regex(f"^{YES_BUTTON}$"), delete_execute_doc_deletion),
+                MessageHandler(filters.Regex(f"^{NO_BUTTON}$"), delete_cancel),
+                MessageHandler(filters.Regex(f"^{HOME_BUTTON}$"), main_menu),
+            ],
 
 
         },
