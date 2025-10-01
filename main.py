@@ -1714,24 +1714,37 @@ async def change_prompt_document_delete(update: Update, context: ContextTypes.DE
     # با زدن بازگشت، به لیست مدارک برمی‌گردد
     return DELETE_CHOOSE_DOC_FOR_PERSON
 
+#
+# async def delete_choose_account_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+#     persons = await get_persons_from_db(context)
+#     if not persons:
+#         await update.message.reply_text("هیچ شخصی نیست.")
+#         return await edit_menu(update, context)
+#     buttons = [p[1] for p in persons]
+#     keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+#     await update.message.reply_text("حساب مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
+#     return DELETE_CHOOSE_ACCOUNT_FOR_PERSON
+#
 async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     persons = await get_persons_from_db(context)
     # person_id = context.user_data.get('selected_person_id')
     if not persons:
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
-    # buttons = [p[1] for p in persons]
-    person_ids = [p[0] for p in persons]
-    await get_documents_for_person_from_db(person_ids, context)
+    buttons = [p[1] for p in persons]
+    keyboard = build_menu_paginated(buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    # person_ids = [p[0] for p in persons]
+    # await get_documents_for_person_from_db(person_ids, context)
     # await get_documents_for_person_from_db(persons, context)
-    doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
-    
-    if not doc_buttons:
-        await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
-        return await delete_choose_type(update, context)
-    
-    keyboard = build_menu_paginated(doc_buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
+    # doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
+    
+    # if not doc_buttons:
+    #     await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
+    #     return await delete_choose_type(update, context)
+    
+    # keyboard = build_menu_paginated(doc_buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    # await update.message.reply_text("مدرک مورد نظر برای کدام شخص است؟", reply_markup=keyboard)
     return DELETE_CHOOSE_DOC_FOR_PERSON
 
 async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -2041,7 +2054,7 @@ def main() -> None:
                     ~(filters.Text([HOME_BUTTON, BACK_BUTTON, NEXT_PAGE_BUTTON, PREV_PAGE_BUTTON])), change_prompt_document_options),
              ],
              DELETE_CHOOSE_DOC_FOR_PERSON: [
-                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), change_choose_target ),
+                MessageHandler(filters.Regex(f"^{BACK_BUTTON}$"), delete_choose_type ),
                 MessageHandler(
                     filters.TEXT & 
                     ~filters.COMMAND &
