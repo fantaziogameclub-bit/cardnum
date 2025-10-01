@@ -490,7 +490,6 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     return ADMIN_MENU
 
-
 ##########$$$$$$$$$$$%%%%%%%%%%---------------To here 2
 async def admin_prompt_add_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("شناسه عددی تلگرام کاربر جدید را وارد کنید:", reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True))
@@ -749,15 +748,19 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
 #---------
 
 # یک تابع کمکی برای گرفتن مدارک از دیتابیس (مثل تابع حساب‌ها)
-async def get_documents_for_person_from_db(person_id: int, context: ContextTypes.DEFAULT_TYPE):
+async def get_documents_for_person_from_db(person_id: int | list, context: ContextTypes.DEFAULT_TYPE):
     """Fetches all documents for a person and stores them in context."""
     conn = get_db_connection()
     if not conn:
         return []
     try:
         with conn.cursor() as cur:
+            if isinstance(person_id, (list, tuple)):
             # فقط نام و آیدی مدارک رو برای ساختن دکمه‌ها می‌گیریم
-            cur.execute("SELECT id, doc_name FROM documents WHERE person_id = ANY(%s) ORDER BY doc_name;", (person_id,))
+                cur.execute("SELECT id, doc_name FROM documents WHERE person_id = ANY(%s) ORDER BY doc_name;", (person_id,))
+            else:
+                cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;",(person_id,))
+                
             documents = cur.fetchall()
             # دیکشنری مدارک رو در user_data ذخیره می‌کنیم برای استفاده در مرحله بعد
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
