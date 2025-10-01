@@ -782,7 +782,7 @@ async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFA
 
             documents = cur.fetchall()
             context.user_data['documents_list_tuples'] = documents
-            context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
+            context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents} if documents else {}
             return documents
     finally:
         conn.close()
@@ -1751,12 +1751,12 @@ async def delete_choose_doc(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     person_name = update.message.text
     person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
     if not person_id: return DELETE_CHOOSE_DOC_FOR_PERSON
-    accounts = await get_accounts_for_person_from_db(person_id, context)
-    if not accounts:
-        await update.message.reply_text(f"هیچ مدرکی برای '{person_name}' نیست.")
-        return await delete_choose_account_for_person(update, context)
-    buttons = list(context.user_data['documents_list_dict'].keys())
-    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
+    if not doc_buttons:
+        await update.message.reply_text("📭 هیچ مدرکی ثبت نشده یا پیدا نشد.")
+        return await delete_choose_type(update, context)
+    # buttons = list(context.user_data['documents_list_dict'].keys())
+    keyboard = build_menu_paginated(doc_buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text(f"کدام مدرک '{person_name}' را حذف می‌کنید؟", reply_markup=keyboard)
     return DELETE_CHOOSE_DOC
 
