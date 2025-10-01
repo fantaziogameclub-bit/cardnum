@@ -748,7 +748,7 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
 #---------
 
 # یک تابع کمکی برای گرفتن مدارک از دیتابیس (مثل تابع حساب‌ها)
-async def get_documents_for_person_from_db(person_id: int | list, context: ContextTypes.DEFAULT_TYPE):
+async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFAULT_TYPE):
     """Fetches all documents for a person and stores them in context."""
     conn = get_db_connection()
     if not conn:
@@ -756,13 +756,11 @@ async def get_documents_for_person_from_db(person_id: int | list, context: Conte
     try:
         with conn.cursor() as cur:
             if isinstance(person_id, (list, tuple)):
-            # فقط نام و آیدی مدارک رو برای ساختن دکمه‌ها می‌گیریم
                 cur.execute("SELECT id, doc_name FROM documents WHERE person_id = ANY(%s) ORDER BY doc_name;", (person_id,))
             else:
                 cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;",(person_id,))
-                
+
             documents = cur.fetchall()
-            # دیکشنری مدارک رو در user_data ذخیره می‌کنیم برای استفاده در مرحله بعد
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
             return documents
     finally:
@@ -1723,12 +1721,13 @@ async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEF
         await update.message.reply_text("هیچ شخصی نیست.")
         return await edit_menu(update, context)
     # buttons = [p[1] for p in persons]
-    await get_documents_for_person_from_db(persons, context)
+    person_ids = [p[0] for p in persons]
+    await get_documents_for_person_from_db(person_ids, context)
+    # await get_documents_for_person_from_db(persons, context)
     doc_buttons = list(context.user_data.get('documents_list_dict', {}).keys())
     
     if not doc_buttons:
         await update.message.reply_text("هیچ مدرکی برای این شخص یافت نشد.")
-        # برمیگردیم به صفحه انتخاب حساب/مدرک
         return await delete_choose_type(update, context)
     
     keyboard = build_menu_paginated(doc_buttons, 0,  n_cols=2,footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
