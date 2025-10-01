@@ -400,21 +400,21 @@ async def admin_view_users(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         users_lines = []
         for tid, fn, username in users:
             fn_display = escape(fn or 'بدون‌نام')
-            if username: 
-                username_display = f"@{escape(username)}"
-            else:
-                username_display = "ندارد"
-                
+            # if username: 
+            #     username_display = f"@{escape(username)}"
+            # else:
+            #     username_display = "ندارد"
+            username_display = f"@{escape(username)}" if username else "ندارد"    
             tid_display = escape(str(tid))
     
             #username_display = f"@{username}" if username else "ندارد"
             users_lines.append(
-                f"👤 {fn_display}<br/>"
-                f"🆔 نام کاربری: {username_display}<br/>"
+                f"👤 {fn_display}<br>"
+                f"🆔 نام کاربری: {username_display}<br>"
                 f"{tid_display}"
             )
 
-        message_html = "لیست کاربران مجاز:<br/><br/>" + "<br/><br/>".join(users_lines)
+        message_html = "لیست کاربران مجاز:<br><br>" + "<br><br>".join(users_lines)
         await update.message.reply_text(message_html, parse_mode=ParseMode.HTML)
 
 
