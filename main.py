@@ -1543,15 +1543,18 @@ async def change_prompt_document_options(update: Update, context: ContextTypes.D
 
 ## ---------    ---------- - ----------------            ------------
 async def change_choose_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    person_name = update.message.text
-    person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
+    selected_person_name = update.message.text
+    person_id = context.user_data.get('persons_list_dict', {}).get(selected_person_name)
+    # person_name = update.message.text
+    # person_id = context.user_data.get('persons_list_dict', {}).get(person_name)
 
     if not person_id:
-        await update.message.reply_text("❌ انتخاب نامعتبر است. لطفاً از دکمه‌ها استفاده کنید.")
+        await update.message.reply_text("❌ شخص انتخابی معتبر نیست، لطفاً از دکمه‌ها استفاده کنید.")
         return CHANGE_CHOOSE_PERSON
 
-    context.user_data['selected_person_id'] = person_id
-    context.user_data['selected_person_name'] = person_name
+    # context.user_data['selected_person_id'] = person_id
+    # context.user_data['selected_person_name'] = person_name
+    context.user_data['change_person'] = {'id': person_id, 'name': selected_person_name}
 
     keyboard = [
         ["ویرایش یک حساب 💳"],
@@ -1560,7 +1563,8 @@ async def change_choose_target(update: Update, context: ContextTypes.DEFAULT_TYP
         [BACK_BUTTON, HOME_BUTTON]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text(f"چه تغییری برای '{person_name}' ایجاد می‌کنید؟", reply_markup=reply_markup)
+    # await update.message.reply_text(f"چه تغییری برای '{person_name}' ایجاد می‌کنید؟", reply_markup=reply_markup)
+    await update.message.reply_text(f"چه تغییری برای '{selected_person_name}' ایجاد می‌کنید؟", reply_markup=reply_markup)
     return CHANGE_CHOOSE_TARGET
 
 ## -----------------------------------------------------------------------------------------------------
@@ -1611,14 +1615,28 @@ async def change_save_person_name(update: Update, context: ContextTypes.DEFAULT_
     return await edit_menu(update, context)
 
 async def change_choose_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # گرفتن آیدی شخص انتخاب‌شده
     person_id = context.user_data.get('change_person', {}).get('id')
+    if not person_id:
+        # اگر change_person پر نشده، از انتخاب کاربر بگیریم
+        selected_person_name = update.message.text
+        person_id = context.user_data.get('persons_list_dict', {}).get(selected_person_name)
+
+    if not person_id:
+        await update.message.reply_text("⚠️ شخص انتخابی معتبر نیست.")
+        return await change_choose_target(update, context)   
+     
+    # گرفتن حساب‌ها از دیتابیس
     await get_accounts_for_person_from_db(person_id, context)
     accounts = list(context.user_data.get('accounts_list_dict', {}).keys())
+
     if not accounts:
         await update.message.reply_text("هیچ حسابی برای ویرایش وجود ندارد.")
         return await change_choose_target(update, context)
-    buttons = list(context.user_data['accounts_list_dict'].keys())
-    keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    
+    # buttons = list(context.user_data['accounts_list_dict'].keys())
+    keyboard = build_menu_paginated(accounts, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
+    # keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     await update.message.reply_text("کدام حساب را ویرایش می‌کنید؟", reply_markup=keyboard)
     return CHANGE_CHOOSE_ACCOUNT
 
