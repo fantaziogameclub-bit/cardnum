@@ -250,6 +250,27 @@ async def get_accounts_for_person_from_db(person_id: int, context: ContextTypes.
     finally:
         conn.close()
 
+# async def get_doc_for_person_from_db(person_id: int, context: ContextTypes.DEFAULT_TYPE):
+#     """Fetches all doc for a person and stores them in context."""
+#     conn = get_db_connection()
+#     if not conn: return None
+#     try:
+#         with conn.cursor() as cur:
+#             cur.execute("SELECT id, account_name FROM documents WHERE person_id = %s ORDER BY account_name;", (person_id,))
+#             documents = cur.fetchall()
+#             # Use a more robust key, e.g., combining bank, card, and id
+#             # context.user_data['accounts_list'] = {f"{acc[1] or 'N/A'} - {acc[2] or 'N/A'} ({acc[0]})": acc[0] for acc in accounts}
+#             context.user_data['documents_list_tuples'] = documents
+#             context.user_data['documents_list_dict'] = {
+#                 f"{acc[1] or 'N/A'}": acc[0]
+#                 #f"{acc[1]} - {acc[2]}" : acc[0]
+#                 for acc in documents
+#             }
+
+#             return documents
+#     finally:
+#         conn.close()
+
 # --- Start & Main Menu Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.effective_user
@@ -740,8 +761,7 @@ async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_T
     #     # keyboard = build_menu_paginated(buttons, 2, n_cols=2, footer_buttons=[[HOME_BUTTON]])
     #     # await update.message.reply_text("شخص دیگری را انتخاب کنید:", reply_markup=keyboard)
     #     # return VIEW_CHOOSE_PERSON
-    
-    
+
     # keyboard = build_menu_paginated(buttons, 0, n_cols=2, footer_buttons=[[BACK_BUTTON, HOME_BUTTON]])
     # await update.message.reply_text(f"حساب‌های '{person_name}'. کدام حساب؟", reply_markup=keyboard)
     # return VIEW_CHOOSE_ACCOUNT
@@ -761,6 +781,7 @@ async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFA
                 cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;",(person_id,))
 
             documents = cur.fetchall()
+            context.user_data['documents_list_tuples'] = documents
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents}
             return documents
     finally:
