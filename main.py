@@ -772,7 +772,9 @@ async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFA
     """Fetches all documents for a person and stores them in context."""
     conn = get_db_connection()
     if not conn:
+        context.user_data['documents_list_dict'] = {}
         return []
+
     try:
         with conn.cursor() as cur:
             if isinstance(person_id, (list, tuple)):
@@ -781,7 +783,7 @@ async def get_documents_for_person_from_db(person_id, context: ContextTypes.DEFA
                 cur.execute("SELECT id, doc_name FROM documents WHERE person_id = %s ORDER BY doc_name;",(person_id,))
 
             documents = cur.fetchall()
-            context.user_data['documents_list_tuples'] = documents
+            # context.user_data['documents_list_tuples'] = documents
             context.user_data['documents_list_dict'] = {doc[1]: doc[0] for doc in documents} if documents else {}
             return documents
     finally:
@@ -1715,26 +1717,27 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # ...
 # تمام هندلرهای start, main_menu, admin, view, edit, add, delete, change بدون تغییر
 
-async def change_prompt_document_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """After selecting a document, show what can be edited."""
-    doc_name = update.message.text
-    doc_id = context.user_data.get('documents_list_dict', {}).get(doc_name)
 
-    if not doc_id:
-        await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
-        return CHANGE_CHOOSE_DOCUMENT_TO_EDIT
+# async def change_prompt_document_delete(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+#     """After selecting a document, show what can be edited."""
+#     doc_name = update.message.text
+#     doc_id = context.user_data.get('documents_list_dict', {}).get(doc_name)
 
-    context.user_data['selected_doc_id'] = doc_id
-    context.user_data['selected_doc_name'] = doc_name
+#     if not doc_id:
+#         await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
+#         return CHANGE_CHOOSE_DOCUMENT_TO_EDIT
 
-    # در آینده می‌توانید برای هر کدام از این گزینه‌ها یک مسیر کامل بسازید
-    await update.message.reply_text(
-        f"گزینه‌ حذف برای مدرک '{doc_name}' در آینده اضافه خواهد شد.\n"
-        "در حال حاضر می‌توانید مدرک را حذف کرده و مجدداً اضافه نمایید.",
-        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON , HOME_BUTTON]], resize_keyboard=True)
-    )
-    # با زدن بازگشت، به لیست مدارک برمی‌گردد
-    return DELETE_CHOOSE_DOC_FOR_PERSON
+#     context.user_data['selected_doc_id'] = doc_id
+#     context.user_data['selected_doc_name'] = doc_name
+
+#     # در آینده می‌توانید برای هر کدام از این گزینه‌ها یک مسیر کامل بسازید
+#     await update.message.reply_text(
+#         f"گزینه‌ حذف برای مدرک '{doc_name}' در آینده اضافه خواهد شد.\n"
+#         "در حال حاضر می‌توانید مدرک را حذف کرده و مجدداً اضافه نمایید.",
+#         reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON , HOME_BUTTON]], resize_keyboard=True)
+#     )
+#     # با زدن بازگشت، به لیست مدارک برمی‌گردد
+#     return DELETE_CHOOSE_DOC_FOR_PERSON
 
 
 async def delete_choose_doc_for_person(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
