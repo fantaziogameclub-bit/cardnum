@@ -855,17 +855,22 @@ async def view_choose_document(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def view_display_document_details(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Fetches and displays the details of a selected document."""
-    doc_name = update.message.text
-    doc_id = context.user_data.get('documents_list_dict', {}).get(doc_name)
+    document_name  = update.message.text
+    documents_list  = context.user_data.get('documents_list_dict', {}).get(document_name)
 
-    if not doc_id:
-        await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
+    if document_name not in documents_list:
+        await update.message.reply_text("⚠️ مدرک مورد نظر پیدا نشد.")
         return VIEW_CHOOSE_DOCUMENT
 
+    if not documents_list:
+        await update.message.reply_text("❌ انتخاب نامعتبر. لطفاً از دکمه‌ها استفاده کنید.")
+        return VIEW_CHOOSE_DOCUMENT
+    
+    doc_id = documents_list[document_name]
     conn = get_db_connection()
     if not conn:
         await update.message.reply_text("خطا در اتصال به پایگاه داده.")
-        return MAIN_MENU
+        return VIEW_CHOOSE_DOCUMENT
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT doc_name, doc_text, file_ids FROM documents WHERE id = %s;", (doc_id,))
@@ -879,7 +884,7 @@ async def view_display_document_details(update: Update, context: ContextTypes.DE
             # ساخت پیام اصلی
             message_raw = f"📄 مدرک: {doc_name}\n\n"
             if doc_text:
-                message_raw += f"📝 متن:\n{doc_text}\n"
+                message_raw += f"📝 متن:\n{doc_text or 'بدون توضیحات'}\n"
             
             message_safe = escape_markdown(message_raw, version=2)
             await update.message.reply_text(
@@ -893,8 +898,17 @@ async def view_display_document_details(update: Update, context: ContextTypes.DE
                 await update.message.reply_text("فایل‌های ضمیمه:")
                 for file_id in file_ids:
                     try:
-                        # ربات تلگرام خودش نوع فایل رو تشخیص میده، پس با send_document میفرستیم
-                        await context.bot.send_document(chat_id=update.effective_chat.id, document=file_id)
+                        # اگر عکس بود
+                        if str(file_id).startswith("AgAC"):  
+                            await context.bot.send_photo(
+                                chat_id=update.effective_chat.id,
+                                photo=file_id
+                            )
+                        else:  # برای سایر انواع فایل
+                            await context.bot.send_document(
+                                chat_id=update.effective_chat.id,
+                                document=file_id
+                            )
                     except Exception as e:
                         logger.error(f"Failed to send file with ID {file_id}: {e}")
                         await update.message.reply_text(f"⚠️ فایل با شناسه `{file_id}` قابل بارگذاری نبود.")
@@ -1057,10 +1071,10 @@ async def edit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 # For brevity, these functions are not repeated here but are assumed to be present in the final file.
 # I will write them out again to be complete as requested.
 
-async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    keyboard = [["شخص جدید 👤", "شخص موجود 👥"], [BACK_BUTTON, HOME_BUTTON]]
-    await update.message.reply_text("برای چه کسی حساب اضافه می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
-    return ADD_CHOOSE_PERSON_TYPE
+# async def add_choose_person_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+#     keyboard = [["شخص جدید 👤", "شخص موجود 👥"], [BACK_BUTTON, HOME_BUTTON]]
+#     await update.message.reply_text("برای چه کسی حساب اضافه می‌کنید؟", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+#     return ADD_CHOOSE_PERSON_TYPE
 
 async def add_prompt_new_person_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("نام کامل شخص جدید را وارد کنید:", reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON, HOME_BUTTON]], resize_keyboard=True))
@@ -1149,22 +1163,48 @@ async def add_prompt_doc_files(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def add_get_doc_files(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Receives photos or documents and stores their file_ids."""
-    if 'doc_files' not in context.user_data:
-        context.user_data['doc_files'] = []
-        file_id = None
+    
+    # اطمینان از وجود ساختار ذخیره‌سازی
+    context.user_data.setdefault('new_doc', {})
+    context.user_data.setdefault('new_doc_files', [])
+
+    file_id = None
+    file_type = None  # photo یا document
+
+    # if 'doc_files' not in context.user_data:
+    #     context.user_data['doc_files'] = []
+    #     file_id = None
+
+
     if update.message.photo:
         file_id = update.message.photo[-1].file_id # Get highest quality
+        file_type = 'photo'
     elif update.message.document:
         file_id = update.message.document.file_id
-
-    if file_id:
-        context.user_data['doc_files'].append(file_id)
-        await update.message.reply_text(
-            f"✅ فایل دریافت شد. تاکنون {len(context.user_data['doc_files'])} فایل ارسال کرده‌اید.\n"
-            "می‌توانید فایل‌های بیشتری بفرستید یا دکمه 'اتمام' را بزنید."
-        )
+        file_type = 'document'
     else:
-        await update.message.reply_text("لطفاً یک عکس یا فایل معتبر ارسال کنید.")
+        await update.message.reply_text("⚠️ لطفاً یک عکس یا فایل معتبر ارسال کنید.")
+        return ADD_DOC_FILES
+    
+    # ذخیره در لیست‌های موقت و اصلی
+    if file_id:
+        context.user_data['new_doc_files'].append((file_id, file_type))
+        context.user_data['new_doc']['files'] = [
+            fid for fid, _ in context.user_data['new_doc_files']
+        ]
+        await update.message.reply_text(
+            f"✅ فایل دریافت شد. تاکنون {len(context.user_data['new_doc_files'])} فایل ارسال کرده‌اید.\n"
+            "می‌توانید فایل‌های بیشتری بفرستید یا دکمه 'اتمام ارسال' را بزنید."
+        )
+
+    # if file_id:
+    #     context.user_data['doc_files'].append(file_id)
+    #     await update.message.reply_text(
+    #         f"✅ فایل دریافت شد. تاکنون {len(context.user_data['doc_files'])} فایل ارسال کرده‌اید.\n"
+    #         "می‌توانید فایل‌های بیشتری بفرستید یا دکمه 'اتمام' را بزنید."
+    #     )
+    # else:
+    #     await update.message.reply_text("لطفاً یک عکس یا فایل معتبر ارسال کنید.")
         
     return ADD_DOC_FILES
 #______÷÷÷÷÷÷÷÷÷÷÷÷_______________÷÷÷÷÷÷÷____
@@ -1238,8 +1278,8 @@ async def add_save_document(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     # Cleanup
     # پاکسازی نهایی در صورت موفقیت
     context.user_data.pop('new_doc', None)
-    context.user_data.pop('selected_person_id', None)
-    context.user_data.pop('doc_files', None) # لیست موقت فایل‌ها هم پاک می‌شود
+    context.user_data.pop('new_doc_files', None)
+    context.user_data.pop('selected_person_id', None) # لیست موقت فایل‌ها هم پاک می‌شود
     return await main_menu(update, context)
     
 # async def add_account_get_bank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
